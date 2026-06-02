@@ -183,6 +183,24 @@ def fmt_brl(v, dec=2):
     s = f"{v:,.{dec}f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {s}"
 
+# ─── MUNICÍPIOS PADRÃO MS ─────────────────────────────────────────────────────
+MUNICIPIOS_MS = [
+    "Água Clara","Alcinópolis","Amambai","Anastácio","Anaurilândia","Angélica",
+    "Antônio João","Aparecida do Taboado","Aquidauana","Aral Moreira","Bandeirantes",
+    "Bataguassu","Batayporã","Bela Vista","Bodoquena","Bonito","Brasilândia",
+    "Caarapó","Camapuã","Campo Grande","Caracol","Cassilândia","Chapadão do Sul",
+    "Corguinho","Coronel Sapucaia","Corumbá","Costa Rica","Coxim","Deodápolis",
+    "Dois Irmãos do Buriti","Douradina","Dourados","Eldorado","Fátima do Sul",
+    "Figueirão","Glória de Dourados","Guia Lopes da Laguna","Iguatemi","Inocência",
+    "Itaporã","Itaquiraí","Ivinhema","Japorã","Jaraguari","Jardim","Jateí","Juti",
+    "Ladário","Laguna Carapã","Maracaju","Miranda","Mundo Novo","Naviraí","Nioaque",
+    "Nova Alvorada do Sul","Nova Andradina","Novo Horizonte do Sul","Paraíso das Águas",
+    "Paranaíba","Paranhos","Pedro Gomes","Ponta Porã","Porto Murtinho",
+    "Ribas do Rio Pardo","Rio Brilhante","Rio Negro","Rio Verde de Mato Grosso",
+    "Rochedo","Santa Rita do Pardo","São Gabriel do Oeste","Selvíria","Sete Quedas",
+    "Sidrolândia","Sonora","Tacuru","Taquarussu","Terenos","Três Lagoas","Vicentina",
+]
+
 # ─── COLUNAS EXCEL ────────────────────────────────────────────────────────────
 COLUNAS_EXCEL = [
     "Data","Técnico","Município","Área (ha)","Produtividade (sc/ha)","Preço Venda (R$/sc)",
@@ -201,13 +219,16 @@ COLUNAS_EXCEL = [
 def load_municipios():
     path = os.path.join(BASE_DIR, "Regiões.xlsx")
     if not os.path.exists(path):
-        return []
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = wb["Planilha1"]
-    munis = sorted({str(row[1]).strip() for row in ws.iter_rows(min_row=2, values_only=True)
-                    if row[1] and str(row[1]).strip()})
-    wb.close()
-    return munis
+        return MUNICIPIOS_MS  # fallback com lista completa de MS
+    try:
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        ws = wb["Planilha1"]
+        munis = sorted({str(row[1]).strip() for row in ws.iter_rows(min_row=2, values_only=True)
+                        if row[1] and str(row[1]).strip()})
+        wb.close()
+        return munis if munis else MUNICIPIOS_MS
+    except Exception:
+        return MUNICIPIOS_MS
 
 @st.cache_data(ttl=300)
 def load_precos_ref():
@@ -639,9 +660,12 @@ st.markdown('<div class="sim-header"><h3>📋 Informe os Dados da Sua Lavoura</h
 st.markdown(
     f'<p style="color:{_MUTED};font-size:0.85rem;font-family:{_FONT};margin-bottom:12px">'
     f'Preencha os valores gastos em cada item da lavoura. '
-    f'<b style="color:#e8f0eb">Campos obrigatórios:</b> Município, Área e Produtividade.</p>',
+    f'<b style="color:#e8f0eb">Campos obrigatórios:</b> Técnico, Município, Área e Produtividade.</p>',
     unsafe_allow_html=True,
 )
+
+# Área de feedback — aparece ACIMA do formulário
+_feedback = st.container()
 
 _municipios         = load_municipios()
 _preco_soja, _preco_milho = load_precos_ref()
@@ -718,14 +742,15 @@ if cleared:
 
 if submitted:
     erros = []
-    if not sim_tecnico.strip(): erros.append("Técnico é obrigatório.")
-    if not sim_mun:             erros.append("Município é obrigatório.")
-    if sim_area  <= 0:          erros.append("Área deve ser maior que zero.")
-    if sim_prod  <= 0:          erros.append("Produtividade deve ser maior que zero.")
+    if not sim_tecnico.strip(): erros.append("⚠️ **Técnico** é obrigatório.")
+    if not sim_mun:             erros.append("⚠️ **Município** é obrigatório.")
+    if sim_area  <= 0:          erros.append("⚠️ **Área** deve ser maior que zero.")
+    if sim_prod  <= 0:          erros.append("⚠️ **Produtividade** deve ser maior que zero.")
 
     if erros:
-        for e in erros:
-            st.error(e)
+        with _feedback:
+            for e in erros:
+                st.error(e, icon="🚨")
     else:
         _dep_total = v_dep * sim_area
         custo_r    = sum([v_sem, v_trat, v_corr, v_fert, v_fung, v_herb,
@@ -777,17 +802,21 @@ if submitted:
                 ok, err = _push_dados_github()
                 if ok:
                     _mark_synced()
-                    st.success(f"✅ Dados salvos e sincronizados com o repositório (aba: {sim_mun})")
+                    with _feedback:
+                        st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos e sincronizados! (aba: {sim_mun})")
                 else:
                     _mark_pending()
-                    st.success(f"✅ Dados salvos localmente (aba: {sim_mun})")
-                    st.caption(f"⚠ Sincronização pendente: {err}")
+                    with _feedback:
+                        st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
+                        st.caption(f"⚠ Sincronização pendente: {err}")
             else:
                 _mark_pending()
-                st.success(f"✅ Dados salvos localmente (aba: {sim_mun})")
-                st.info("📴 Sem conexão com a internet — os dados sincronizarão automaticamente ao reconectar.")
+                with _feedback:
+                    st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
+                    st.info("📴 Sem conexão — sincronizará automaticamente ao reconectar.")
         except Exception as ex:
-            st.warning(f"Não foi possível salvar: {ex}")
+            with _feedback:
+                st.error(f"❌ Erro ao salvar: {ex}", icon="🚨")
 
 # ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.divider()
