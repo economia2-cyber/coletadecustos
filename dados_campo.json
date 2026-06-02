@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "data": "2026-06-02",
+    "tecnico": "Raphael",
+    "municipio": "Aparecida do Taboado",
+    "cultura": "Soja",
+    "area": 600,
+    "produtividade": 50,
+    "preco": 120,
+    "sementes": 0,
+    "trat_semente": 0,
+    "corretivo": 0,
+    "fertilizante": 0,
+    "fungicida": 0,
+    "herbicida": 0,
+    "inseticida": 0,
+    "inoculantes": 0,
+    "adjuvante": 0,
+    "maquinas": 0,
+    "seguro": 0,
+    "transporte": 0,
+    "armazenagem": 0,
+    "assist_tec": 0,
+    "manutencao": 0,
+    "mao_obra": 0,
+    "desp_admin": 0,
+    "juros": 0,
+    "outros": 0,
+    "deprec": 195000,
+    "custo_total_r": 195000,
+    "custo_ha": 325,
+    "custo_sc": 6.5,
+    "receita_ha": 6000,
+    "margem_ha": 5675,
+    "ponto_eq": 2.7083333333333335
+  }
+]
