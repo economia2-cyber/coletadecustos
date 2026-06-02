@@ -664,9 +664,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Área de feedback — aparece ACIMA do formulário
-_feedback = st.container()
-
 _municipios         = load_municipios()
 _preco_soja, _preco_milho = load_precos_ref()
 _preco_default      = _preco_soja if cultura_sel == "Soja IPRO" else _preco_milho
@@ -742,15 +739,14 @@ if cleared:
 
 if submitted:
     erros = []
-    if not sim_tecnico.strip(): erros.append("⚠️ **Técnico** é obrigatório.")
-    if not sim_mun:             erros.append("⚠️ **Município** é obrigatório.")
-    if sim_area  <= 0:          erros.append("⚠️ **Área** deve ser maior que zero.")
-    if sim_prod  <= 0:          erros.append("⚠️ **Produtividade** deve ser maior que zero.")
+    if not sim_tecnico.strip(): erros.append("Preencha o campo **Técnico**.")
+    if not sim_mun:             erros.append("Selecione o **Município**.")
+    if sim_area  <= 0:          erros.append("**Área** deve ser maior que zero.")
+    if sim_prod  <= 0:          erros.append("**Produtividade** deve ser maior que zero.")
 
     if erros:
-        with _feedback:
-            for e in erros:
-                st.error(e, icon="🚨")
+        for e in erros:
+            st.error(e)
     else:
         _dep_total = v_dep * sim_area
         custo_r    = sum([v_sem, v_trat, v_corr, v_fert, v_fung, v_herb,
@@ -802,21 +798,18 @@ if submitted:
                 ok, err = _push_dados_github()
                 if ok:
                     _mark_synced()
-                    with _feedback:
-                        st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos e sincronizados! (aba: {sim_mun})")
+                    st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos e sincronizados! (aba: {sim_mun})")
                 else:
                     _mark_pending()
-                    with _feedback:
-                        st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
+                    st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
+                    if err:
                         st.caption(f"⚠ Sincronização pendente: {err}")
             else:
                 _mark_pending()
-                with _feedback:
-                    st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
-                    st.info("📴 Sem conexão — sincronizará automaticamente ao reconectar.")
+                st.success(f"✅ Dados de **{sim_tecnico.strip()}** salvos localmente. (aba: {sim_mun})")
+                st.info("📴 Sem conexão — sincronizará automaticamente ao reconectar.")
         except Exception as ex:
-            with _feedback:
-                st.error(f"❌ Erro ao salvar: {ex}", icon="🚨")
+            st.error(f"❌ Erro ao salvar: {ex}")
 
 # ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.divider()
