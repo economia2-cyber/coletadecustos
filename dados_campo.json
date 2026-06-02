@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "data": "2026-06-02",
+    "tecnico": "Linneu",
+    "municipio": "Rio Brilhante",
+    "cultura": "Soja",
+    "area": 45,
+    "produtividade": 62,
+    "preco": 120,
+    "sementes": 0,
+    "trat_semente": 0,
+    "corretivo": 0,
+    "fertilizante": 0,
+    "fungicida": 0,
+    "herbicida": 0,
+    "inseticida": 0,
+    "inoculantes": 0,
+    "adjuvante": 0,
+    "maquinas": 0,
+    "seguro": 0,
+    "transporte": 0,
+    "armazenagem": 0,
+    "assist_tec": 0,
+    "manutencao": 0,
+    "mao_obra": 0,
+    "desp_admin": 0,
+    "juros": 0,
+    "outros": 0,
+    "deprec": 14625,
+    "custo_total_r": 14625,
+    "custo_ha": 325,
+    "custo_sc": 5.241935483870968,
+    "receita_ha": 7440,
+    "margem_ha": 7115,
+    "ponto_eq": 2.7083333333333335
+  }
+]
