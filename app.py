@@ -185,7 +185,7 @@ def fmt_brl(v, dec=2):
 
 # ─── COLUNAS EXCEL ────────────────────────────────────────────────────────────
 COLUNAS_EXCEL = [
-    "Data","Município","Área (ha)","Produtividade (sc/ha)","Preço Venda (R$/sc)",
+    "Data","Técnico","Município","Área (ha)","Produtividade (sc/ha)","Preço Venda (R$/sc)",
     "Sementes (R$)","Tratamento de Semente (R$)","Corretivo de Solo (R$)",
     "Fertilizante (R$)","Fungicida (R$)","Herbicida (R$)","Inseticida (R$)",
     "Inoculantes (R$)","Adjuvante (R$)","Op. c/ Máquinas (R$)","Seguro Agrícola (R$)",
@@ -360,7 +360,7 @@ def salvar_produtor(municipio, cultura, valores, kpis):
     else:
         ws = wb[nome_aba]
     ws.append([
-        date.today().isoformat(), municipio,
+        date.today().isoformat(), valores.get("tecnico", ""), municipio,
         valores["area"], valores["produtividade"], valores["preco"],
         valores["sementes"], valores["trat_semente"], valores["corretivo"],
         valores["fertilizante"], valores["fungicida"], valores["herbicida"],
@@ -437,7 +437,7 @@ def importar_dados_campo() -> tuple:
         else:
             ws = wb[nome_aba]
         ws.append([
-            e.get("data",""), e.get("municipio",""),
+            e.get("data",""), e.get("tecnico",""), e.get("municipio",""),
             e.get("area",0), e.get("produtividade",0), e.get("preco",0),
             e.get("sementes",0), e.get("trat_semente",0), e.get("corretivo",0),
             e.get("fertilizante",0), e.get("fungicida",0), e.get("herbicida",0),
@@ -650,17 +650,21 @@ if "sim_clear_v" not in st.session_state:
     st.session_state["sim_clear_v"] = 0
 
 with st.form(f"coleta_form_{st.session_state['sim_clear_v']}"):
-    r1c1, r1c2, r1c3, r1c4 = st.columns(4)
-    with r1c1:
+    rc1, rc2 = st.columns([2, 2])
+    with rc1:
+        sim_tecnico = st.text_input("Técnico *", placeholder="Digite seu nome completo")
+    with rc2:
         if _municipios:
             sim_mun = st.selectbox("Município *", [""] + _municipios)
         else:
             sim_mun = st.text_input("Município *")
-    with r1c2:
+
+    r1c1, r1c2, r1c3 = st.columns(3)
+    with r1c1:
         sim_area  = st.number_input("Área (ha) *",             min_value=0.0, value=0.0,  step=10.0, format="%.1f")
-    with r1c3:
+    with r1c2:
         sim_prod  = st.number_input("Produtividade (sc/ha) *", min_value=0.0, value=0.0,  step=1.0,  format="%.1f")
-    with r1c4:
+    with r1c3:
         sim_preco = st.number_input("Preço de venda (R$/sc)",  min_value=0.0, value=float(_preco_default), step=1.0, format="%.2f")
 
     st.markdown(
@@ -712,9 +716,10 @@ if cleared:
 
 if submitted:
     erros = []
-    if not sim_mun:    erros.append("Município é obrigatório.")
-    if sim_area  <= 0: erros.append("Área deve ser maior que zero.")
-    if sim_prod  <= 0: erros.append("Produtividade deve ser maior que zero.")
+    if not sim_tecnico.strip(): erros.append("Técnico é obrigatório.")
+    if not sim_mun:             erros.append("Município é obrigatório.")
+    if sim_area  <= 0:          erros.append("Área deve ser maior que zero.")
+    if sim_prod  <= 0:          erros.append("Produtividade deve ser maior que zero.")
 
     if erros:
         for e in erros:
@@ -751,6 +756,7 @@ if submitted:
         st.markdown("</div>", unsafe_allow_html=True)
 
         vals = dict(
+            tecnico=sim_tecnico.strip(),
             area=sim_area, produtividade=sim_prod, preco=sim_preco,
             sementes=v_sem, trat_semente=v_trat, corretivo=v_corr,
             fertilizante=v_fert, fungicida=v_fung, herbicida=v_herb,

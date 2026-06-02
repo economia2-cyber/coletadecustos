@@ -163,10 +163,10 @@
 
   <div class="stitle">IDENTIFICAÇÃO</div>
   <div class="r2">
+    <div class="fg"><label>Técnico *</label>
+      <input type="text" id="tecnico" placeholder="Seu nome completo"></div>
     <div class="fg"><label>Município *</label>
       <select id="municipio"><option value="">Selecione...</option></select></div>
-    <div class="fg"><label>Área (ha) *</label>
-      <input type="number" id="area" placeholder="0.0" min="0" step="10" inputmode="decimal"></div>
   </div>
   <div class="r2">
     <div class="fg"><label>Produtividade (sc/ha) *</label>
@@ -397,13 +397,15 @@ const n=(id,d=0)=>{const v=parseFloat(document.getElementById(id).value);return 
 const brl=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
 function calcular(){
+  const tecnico=document.getElementById('tecnico').value.trim();
   const mun=document.getElementById('municipio').value;
   const area=n('area'), prod=n('produtividade'), preco=n('preco',PRECO_REF[cultura]);
   document.getElementById('errs').innerHTML='';
   const erros=[];
-  if(!mun)    erros.push('Município é obrigatório.');
-  if(area<=0) erros.push('Área deve ser maior que zero.');
-  if(prod<=0) erros.push('Produtividade deve ser maior que zero.');
+  if(!tecnico) erros.push('Técnico é obrigatório.');
+  if(!mun)     erros.push('Município é obrigatório.');
+  if(area<=0)  erros.push('Área deve ser maior que zero.');
+  if(prod<=0)  erros.push('Produtividade deve ser maior que zero.');
   if(erros.length){
     document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">⚠️ ${e}</div>`).join('');
     return;
@@ -425,7 +427,7 @@ function calcular(){
 
   const entry={
     data:new Date().toISOString().split('T')[0],
-    municipio:mun, cultura, area, produtividade:prod, preco,
+    tecnico, municipio:mun, cultura, area, produtividade:prod, preco,
     ...vals,
     custo_total_r:custo_r, custo_ha, custo_sc,
     receita_ha:receita, margem_ha:margem, ponto_eq,
@@ -529,7 +531,7 @@ async function renderPending(){
         <span class="emun">${e.municipio}</span>
         <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'⏳ Pendente':'✅ Sincronizado'}</span>
       </div>
-      <div class="edet">${e.cultura} · ${e.area} ha · ${e.produtividade} sc/ha · Custo: ${brl(e.custo_ha)}/ha</div>
+      <div class="edet">${e.tecnico||''} · ${e.cultura} · ${e.area} ha · ${e.produtividade} sc/ha · Custo: ${brl(e.custo_ha)}/ha</div>
       <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}</div>
       <div style="text-align:right;margin-top:7px">
         <button class="bdanger" onclick="delEntry(${e.id})">🗑️ Excluir</button>
