@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Ambiente virtual
+venv/
+.venv/
+env/
+
+# Streamlit cache
+.streamlit/
+
+# Status de sync local (não compartilhar entre máquinas)
+sync_status.json
+
+# Arquivos temporários
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store

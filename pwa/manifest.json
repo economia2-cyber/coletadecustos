@@ -1,0 +1,14 @@
+{
+  "name": "Coleta de Custos – Aprosoja/MS",
+  "short_name": "Coleta Aprosoja",
+  "description": "Coleta offline de custos de produção agrícola",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1a12",
+  "theme_color": "#2D5416",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "../assets/Aprosoja-4.png", "sizes": "any", "type": "image/png" }
+  ]
+}

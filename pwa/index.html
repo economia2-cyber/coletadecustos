@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2D5416">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Coleta Aprosoja">
+  <title>Coleta de Custos – Aprosoja/MS</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0e1a12;--bg2:#122518;--bg3:#1a3328;
+      --gd:#2D5416;--gn:#4caf50;--gl:#c8e6a0;
+      --gold:#c8a415;--light:#e8f0eb;--muted:#7aa88a;--label:#6a9978;
+      --border:#1c3d28;--red:#e07878;--ibg:#1a3025;--ibrd:#2d5a3d;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--light);
+      font-family:'Segoe UI',Tahoma,Geneva,sans-serif;overscroll-behavior:none}
+    body{padding-bottom:64px;overflow-y:auto}
+
+    /* ── Header ── */
+    .header{background:var(--gd);padding:10px 16px;display:flex;align-items:center;
+      justify-content:center;position:sticky;top:0;z-index:200;
+      box-shadow:0 2px 8px rgba(0,0,0,.5)}
+    .header img{height:36px;max-width:180px;object-fit:contain}
+    .header-title{color:#fff;font-weight:700;font-size:1rem;display:none}
+    .dot{position:absolute;right:14px;width:10px;height:10px;border-radius:50%;
+      background:var(--red);transition:background .4s}
+    .dot.on{background:var(--gn)}
+
+    /* ── Pages ── */
+    .page{display:none;padding:14px 14px 10px}
+    .page.active{display:block}
+    .ptitle{font-size:1.1rem;font-weight:800;letter-spacing:1px;margin-bottom:2px}
+    .psub{font-size:.72rem;color:var(--muted);margin-bottom:14px}
+
+    /* ── Cultura ── */
+    .cult{display:flex;gap:8px;margin-bottom:14px}
+    .cbtn{flex:1;padding:10px;border-radius:12px;border:2px solid var(--ibrd);
+      background:var(--ibg);color:var(--gl);font-size:.85rem;font-weight:600;cursor:pointer}
+    .cbtn.active{border-color:#e74c3c;color:#fff;box-shadow:0 0 10px rgba(231,76,60,.4)}
+
+    /* ── Section titles ── */
+    .stitle{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+      color:var(--label);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+    /* ── Fields ── */
+    .fg{margin-bottom:9px}
+    label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:3px}
+    input,select,textarea{width:100%;padding:9px 11px;background:var(--ibg);
+      border:1px solid var(--ibrd);border-radius:8px;color:var(--light);
+      font-size:.88rem;outline:none;-webkit-appearance:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+    select option{background:var(--bg2)}
+    .r2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+
+    /* ── Buttons ── */
+    .bprimary{width:100%;padding:13px;background:var(--gold);color:#0e1a12;
+      border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:14px}
+    .bsecondary{width:100%;padding:10px;background:transparent;color:var(--muted);
+      border:1px solid var(--border);border-radius:10px;font-size:.82rem;cursor:pointer;margin-top:7px}
+    .bsync{width:100%;padding:11px;background:var(--gd);color:var(--gl);
+      border:1px solid var(--gn);border-radius:10px;font-size:.85rem;font-weight:600;
+      cursor:pointer;margin-top:10px}
+    .bdanger{padding:5px 10px;background:transparent;color:var(--red);
+      border:1px solid var(--red);border-radius:6px;font-size:.7rem;cursor:pointer}
+
+    /* ── Errors ── */
+    .err{background:rgba(224,120,120,.1);border:1px solid rgba(224,120,120,.4);
+      border-radius:8px;padding:9px 11px;color:var(--red);font-size:.78rem;margin-bottom:10px}
+
+    /* ── Result ── */
+    .result{background:linear-gradient(145deg,#0d2918,#122518);border:1px solid var(--ibrd);
+      border-radius:12px;padding:14px;margin-top:14px}
+    .rtitle{color:var(--gold);font-weight:700;font-size:.85rem;margin-bottom:11px}
+    .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .kcard{background:linear-gradient(145deg,var(--bg2),var(--bg3));border:1px solid #243f2f;
+      border-radius:10px;padding:11px 9px;text-align:center}
+    .klbl{font-size:.56rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+      color:var(--label);margin-bottom:4px}
+    .kval{font-size:1rem;font-weight:800;color:var(--gold)}
+    .kval.g{color:var(--gn)}.kval.r{color:var(--red)}.kval.l{color:var(--light)}
+
+    /* ── Sync bar ── */
+    .sbar{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+      padding:9px 13px;display:flex;align-items:center;gap:8px;
+      font-size:.77rem;color:var(--muted);margin-bottom:14px}
+
+    /* ── Entry cards ── */
+    .ecard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+      padding:11px;margin-bottom:9px}
+    .ehead{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+    .emun{font-weight:700;color:var(--light);font-size:.88rem}
+    .edet{font-size:.72rem;color:var(--muted)}
+    .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700}
+    .bpend{background:rgba(200,164,21,.15);color:var(--gold);border:1px solid var(--gold)}
+    .bsync2{background:rgba(76,175,80,.15);color:var(--gn);border:1px solid var(--gn)}
+
+    /* ── Empty state ── */
+    .empty{text-align:center;color:var(--muted);padding:40px 0}
+    .empty .ei{font-size:2.5rem;margin-bottom:8px}
+
+    /* ── Settings ── */
+    .snote{background:rgba(200,164,21,.08);border:1px solid rgba(200,164,21,.25);
+      border-radius:8px;padding:10px 12px;font-size:.73rem;color:var(--muted);
+      margin-bottom:14px;line-height:1.5}
+
+    /* ── Bottom nav ── */
+    .bnav{position:fixed;bottom:0;left:0;right:0;background:#060e09;
+      border-top:1px solid var(--border);display:flex;z-index:200}
+    .nbtn{flex:1;padding:10px 8px 7px;background:transparent;border:none;
+      color:var(--muted);font-size:.62rem;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+    .nbtn .ni{font-size:1.25rem}
+    .nbtn.active{color:var(--gold)}
+    .bcnt{position:absolute;top:5px;left:50%;margin-left:2px;
+      background:#e74c3c;color:#fff;font-size:.58rem;padding:1px 4px;
+      border-radius:8px;font-weight:700;display:none}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
+      background:var(--bg3);border:1px solid var(--gn);border-radius:8px;
+      padding:11px 18px;color:var(--light);font-size:.82rem;z-index:300;
+      box-shadow:0 4px 16px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;
+      max-width:88vw;text-align:center;pointer-events:none;white-space:nowrap}
+    .toast.show{opacity:1}
+    .toast.err2{border-color:var(--red)}
+
+    /* ── Spinner ── */
+    .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);
+      border-top-color:var(--gold);border-radius:50%;animation:rot .7s linear infinite;vertical-align:middle}
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <img src="../assets/Aprosoja-4.png" alt="Aprosoja/MS"
+       onerror="this.style.display='none';document.querySelector('.header-title').style.display='block'">
+  <span class="header-title">Aprosoja/MS</span>
+  <div id="dot" class="dot"></div>
+</div>
+
+<!-- ════════════════ FORMULÁRIO ════════════════ -->
+<div id="page-form" class="page active">
+  <div class="ptitle">📋 COLETA DE CUSTOS</div>
+  <div class="psub" id="psub">Soja IPRO · Safra 2026/2027 · Aprosoja/MS</div>
+
+  <div class="cult">
+    <button class="cbtn active" id="bs" onclick="setCult('Soja')">🌱 SOJA</button>
+    <button class="cbtn"        id="bm" onclick="setCult('Milho')">🌽 MILHO</button>
+  </div>
+
+  <div id="errs"></div>
+
+  <div class="stitle">IDENTIFICAÇÃO</div>
+  <div class="r2">
+    <div class="fg"><label>Município *</label>
+      <select id="municipio"><option value="">Selecione...</option></select></div>
+    <div class="fg"><label>Área (ha) *</label>
+      <input type="number" id="area" placeholder="0.0" min="0" step="10" inputmode="decimal"></div>
+  </div>
+  <div class="r2">
+    <div class="fg"><label>Produtividade (sc/ha) *</label>
+      <input type="number" id="produtividade" placeholder="0.0" min="0" step="1" inputmode="decimal"></div>
+    <div class="fg"><label>Preço venda (R$/sc)</label>
+      <input type="number" id="preco" placeholder="120.00" min="0" step="1" inputmode="decimal"></div>
+  </div>
+
+  <div class="stitle">INSUMOS DA LAVOURA (R$ total gasto)</div>
+  <div class="r2">
+    <div class="fg"><label>Sementes</label>
+      <input type="number" id="sementes" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Trat. de Semente</label>
+      <input type="number" id="trat_semente" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Corretivo de Solo</label>
+      <input type="number" id="corretivo" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Fertilizante</label>
+      <input type="number" id="fertilizante" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Fungicida</label>
+      <input type="number" id="fungicida" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Herbicida</label>
+      <input type="number" id="herbicida" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Inseticida</label>
+      <input type="number" id="inseticida" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Inoculantes</label>
+      <input type="number" id="inoculantes" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Adjuvante</label>
+      <input type="number" id="adjuvante" placeholder="0.00" min="0" inputmode="decimal"></div>
+  </div>
+
+  <div class="stitle">OPERAÇÕES E SERVIÇOS (R$ total gasto)</div>
+  <div class="r2">
+    <div class="fg"><label>Op. c/ Máquinas</label>
+      <input type="number" id="maquinas" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Seguro Agrícola</label>
+      <input type="number" id="seguro" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Transporte Externo</label>
+      <input type="number" id="transporte" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Armazenagem</label>
+      <input type="number" id="armazenagem" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Assist. Técnica</label>
+      <input type="number" id="assist_tec" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Manut. Máquinas</label>
+      <input type="number" id="manutencao" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Mão de Obra</label>
+      <input type="number" id="mao_obra" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Desp. Administrativas</label>
+      <input type="number" id="desp_admin" placeholder="0.00" min="0" inputmode="decimal"></div>
+  </div>
+
+  <div class="stitle">CUSTOS FINANCEIROS (R$ total gasto)</div>
+  <div class="r3">
+    <div class="fg"><label>Juros/Financ.</label>
+      <input type="number" id="juros" placeholder="0.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Depreciação (R$/ha)</label>
+      <input type="number" id="deprec_ha" placeholder="325.00" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Outros Custos</label>
+      <input type="number" id="outros" placeholder="0.00" min="0" inputmode="decimal"></div>
+  </div>
+
+  <button class="bprimary" onclick="calcular()">🔍 CALCULAR E SALVAR</button>
+  <button class="bsecondary" onclick="limpar()">🗑️ LIMPAR FORMULÁRIO</button>
+  <div id="result"></div>
+</div>
+
+<!-- ════════════════ PENDENTES ════════════════ -->
+<div id="page-pending" class="page">
+  <div class="ptitle">📤 DADOS COLETADOS</div>
+  <div class="psub">Entradas salvas no dispositivo</div>
+
+  <div class="sbar" id="sbar">
+    <span id="sbar-icon">🔄</span>
+    <span id="sbar-txt">Verificando...</span>
+  </div>
+  <button class="bsync" id="bsync" onclick="syncAgora()" style="display:none">
+    🔄 Sincronizar com GitHub Agora
+  </button>
+
+  <div id="elist"></div>
+  <div class="empty" id="empty-state" style="display:none">
+    <div class="ei">✅</div>
+    <div>Nenhuma entrada salva</div>
+  </div>
+</div>
+
+<!-- ════════════════ CONFIGURAÇÕES ════════════════ -->
+<div id="page-settings" class="page">
+  <div class="ptitle">⚙️ CONFIGURAÇÕES</div>
+  <div class="psub">Conexão com GitHub para sincronização</div>
+
+  <div class="snote">
+    🔒 O token fica salvo <b>apenas neste dispositivo</b>. Use um token com permissão
+    <b>Contents → Read &amp; Write</b> somente no repositório da planilha.
+  </div>
+
+  <div class="fg"><label>GitHub Token (Personal Access Token)</label>
+    <input type="text" id="cfg-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
+  <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
+    <input type="text" id="cfg-repo" placeholder="meu-usuario/meu-repositorio"></div>
+
+  <button class="bprimary" onclick="salvarCfg()">💾 SALVAR CONFIGURAÇÕES</button>
+
+  <hr>
+  <div class="stitle">MUNICÍPIOS (um por linha)</div>
+  <div class="fg">
+    <label>Personalize a lista de municípios disponíveis no formulário</label>
+    <textarea id="cfg-munis" rows="8" style="resize:vertical" placeholder="Campo Grande&#10;Dourados&#10;Maracaju&#10;..."></textarea>
+  </div>
+  <button class="bprimary" onclick="salvarMunis()">💾 SALVAR MUNICÍPIOS</button>
+
+  <hr>
+  <p style="text-align:center;color:var(--label);font-size:.7rem;padding:6px 0">
+    Aprosoja/MS · Coleta de Custos · Safra 2026/2027
+  </p>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bnav">
+  <button class="nbtn active" id="nav-form"     onclick="showPage('form')">
+    <span class="ni">📋</span>Coleta</button>
+  <button class="nbtn"        id="nav-pending"  onclick="showPage('pending')" style="position:relative">
+    <span class="ni">📤</span>Pendentes
+    <span id="bcnt" class="bcnt">0</span>
+  </button>
+  <button class="nbtn"        id="nav-settings" onclick="showPage('settings')">
+    <span class="ni">⚙️</span>Config</button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── CONSTANTES ───────────────────────────────────────────────────────────────
+const DEPREC_REF = {Soja:325.0, Milho:250.0};
+const PRECO_REF  = {Soja:120.0, Milho:54.0};
+const CAMPOS_NUM = ['sementes','trat_semente','corretivo','fertilizante','fungicida',
+  'herbicida','inseticida','inoculantes','adjuvante','maquinas','seguro','transporte',
+  'armazenagem','assist_tec','manutencao','mao_obra','desp_admin','juros','outros'];
+const MUNIS_DEFAULT = [
+  'Água Clara','Alcinópolis','Amambai','Anastácio','Anaurilândia','Angélica',
+  'Antônio João','Aparecida do Taboado','Aquidauana','Aral Moreira','Bandeirantes',
+  'Bataguassu','Batayporã','Bela Vista','Bodoquena','Bonito','Brasilândia',
+  'Caarapó','Camapuã','Campo Grande','Caracol','Cassilândia','Chapadão do Sul',
+  'Corguinho','Coronel Sapucaia','Corumbá','Costa Rica','Coxim','Deodápolis',
+  'Dois Irmãos do Buriti','Douradina','Dourados','Eldorado','Fátima do Sul',
+  'Figueirão','Glória de Dourados','Guia Lopes da Laguna','Iguatemi','Inocência',
+  'Itaporã','Itaquiraí','Ivinhema','Japorã','Jaraguari','Jardim','Jateí','Juti',
+  'Ladário','Laguna Carapã','Maracaju','Miranda','Mundo Novo','Naviraí','Nioaque',
+  'Nova Alvorada do Sul','Nova Andradina','Novo Horizonte do Sul','Paraíso das Águas',
+  'Paranaíba','Paranhos','Pedro Gomes','Ponta Porã','Porto Murtinho','Ribas do Rio Pardo',
+  'Rio Brilhante','Rio Negro','Rio Verde de Mato Grosso','Rochedo','Santa Rita do Pardo',
+  'São Gabriel do Oeste','Selvíria','Sete Quedas','Sidrolândia','Sonora','Tacuru',
+  'Taquarussu','Terenos','Três Lagoas','Vicentina',
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let cultura = 'Soja';
+let online  = navigator.onLine;
+let db;
+
+// ─── IndexedDB ────────────────────────────────────────────────────────────────
+function openDB() {
+  return new Promise((res,rej) => {
+    const r = indexedDB.open('AprosojaColeta',1);
+    r.onupgradeneeded = e => {
+      const s = e.target.result.createObjectStore('entries',{keyPath:'id',autoIncrement:true});
+      s.createIndex('status','status',{unique:false});
+    };
+    r.onsuccess = e => { db = e.target.result; res(db); };
+    r.onerror   = () => rej(r.error);
+  });
+}
+const dbAll = () => new Promise((r,j)=>{const q=db.transaction('entries','readonly').objectStore('entries').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+const dbAdd = e => new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').add(e);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+const dbPut = e => new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').put(e);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+const dbDel = id=> new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').delete(id);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo')||''});
+
+function salvarCfg(){
+  const t=document.getElementById('cfg-token').value.trim();
+  const r=document.getElementById('cfg-repo').value.trim();
+  if(!t||!r){showToast('Preencha token e repositório',1);return;}
+  localStorage.setItem('gh_token',t);
+  localStorage.setItem('gh_repo',r);
+  showToast('✅ Configurações salvas!');
+}
+
+function salvarMunis(){
+  const txt=document.getElementById('cfg-munis').value.trim();
+  const m=txt.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!m.length){showToast('Adicione ao menos um município',1);return;}
+  localStorage.setItem('munis_custom',JSON.stringify(m));
+  popularMunis();
+  showToast(`✅ ${m.length} municípios salvos!`);
+}
+
+function carregarCfg(){
+  const {token,repo}=getCfg();
+  document.getElementById('cfg-token').value=token;
+  document.getElementById('cfg-repo').value=repo;
+  const m=localStorage.getItem('munis_custom');
+  if(m) document.getElementById('cfg-munis').value=JSON.parse(m).join('\n');
+  else  document.getElementById('cfg-munis').value=MUNIS_DEFAULT.join('\n');
+}
+
+// ─── MUNICÍPIOS ───────────────────────────────────────────────────────────────
+function popularMunis(){
+  const sel=document.getElementById('municipio');
+  const raw=localStorage.getItem('munis_custom');
+  const lista=raw?JSON.parse(raw):MUNIS_DEFAULT;
+  sel.innerHTML='<option value="">Selecione...</option>'+lista.map(m=>`<option value="${m}">${m}</option>`).join('');
+}
+
+// ─── CULTURA ─────────────────────────────────────────────────────────────────
+function setCult(c){
+  cultura=c;
+  document.getElementById('bs').className='cbtn'+(c==='Soja'?' active':'');
+  document.getElementById('bm').className='cbtn'+(c==='Milho'?' active':'');
+  document.getElementById('psub').textContent=(c==='Soja'?'Soja IPRO':'Milho')+' · Safra 2026/2027 · Aprosoja/MS';
+  const dEl=document.getElementById('deprec_ha');
+  if(!dEl.value||dEl.value==DEPREC_REF[c==='Soja'?'Milho':'Soja']) dEl.value=DEPREC_REF[c].toFixed(2);
+  document.getElementById('preco').placeholder=PRECO_REF[c].toFixed(2);
+}
+
+// ─── FORMULÁRIO ───────────────────────────────────────────────────────────────
+const n=(id,d=0)=>{const v=parseFloat(document.getElementById(id).value);return isNaN(v)?d:v;};
+const brl=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+
+function calcular(){
+  const mun=document.getElementById('municipio').value;
+  const area=n('area'), prod=n('produtividade'), preco=n('preco',PRECO_REF[cultura]);
+  document.getElementById('errs').innerHTML='';
+  const erros=[];
+  if(!mun)    erros.push('Município é obrigatório.');
+  if(area<=0) erros.push('Área deve ser maior que zero.');
+  if(prod<=0) erros.push('Produtividade deve ser maior que zero.');
+  if(erros.length){
+    document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">⚠️ ${e}</div>`).join('');
+    return;
+  }
+  const dep_ha=n('deprec_ha',DEPREC_REF[cultura]);
+  const dep_tot=dep_ha*area;
+  const vals={};
+  let soma=0;
+  CAMPOS_NUM.forEach(c=>{vals[c]=n(c);soma+=vals[c];});
+  vals.deprec=dep_tot;
+
+  const custo_r =soma+dep_tot;
+  const custo_ha=custo_r/area;
+  const custo_sc=custo_ha/prod;
+  const receita =prod*preco;
+  const margem  =receita-custo_ha;
+  const lajida  =margem+(vals.juros/area)+dep_ha;
+  const ponto_eq=custo_ha/preco;
+
+  const entry={
+    data:new Date().toISOString().split('T')[0],
+    municipio:mun, cultura, area, produtividade:prod, preco,
+    ...vals,
+    custo_total_r:custo_r, custo_ha, custo_sc,
+    receita_ha:receita, margem_ha:margem, ponto_eq,
+    status:'pending', created_at:new Date().toISOString(),
+  };
+
+  dbAdd(entry).then(()=>{
+    atualizarBadge();
+    mostrarResultado(mun,area,custo_ha,custo_sc,receita,margem,lajida,ponto_eq,prod);
+    showToast(online?'✅ Salvo! Sincronizando...':'✅ Salvo offline. Sincronizará ao conectar.');
+    if(online) syncPendentes();
+  });
+}
+
+function limpar(){
+  document.getElementById('municipio').selectedIndex=0;
+  [...CAMPOS_NUM,'area','produtividade','preco'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('deprec_ha').value=DEPREC_REF[cultura].toFixed(2);
+  document.getElementById('errs').innerHTML='';
+  document.getElementById('result').innerHTML='';
+}
+
+function mostrarResultado(mun,area,cha,csc,rec,mar,laj,peq,prod){
+  const mc=mar>=0?'g':'r', lc=laj>=0?'g':'r';
+  document.getElementById('result').innerHTML=`
+  <div class="result">
+    <div class="rtitle">Resultado — ${mun} · ${area.toLocaleString('pt-BR')} ha · ${cultura}</div>
+    <div class="kgrid">
+      <div class="kcard"><div class="klbl">Custo Total/ha</div><div class="kval">${brl(cha)}</div></div>
+      <div class="kcard"><div class="klbl">Custo/Saca</div><div class="kval l">${brl(csc)}</div></div>
+      <div class="kcard"><div class="klbl">Receita/ha</div><div class="kval l">${brl(rec)}</div></div>
+      <div class="kcard"><div class="klbl">Margem/ha</div><div class="kval ${mc}">${brl(mar)}</div></div>
+      <div class="kcard"><div class="klbl">LAJIDA/ha</div><div class="kval ${lc}">${brl(laj)}</div></div>
+      <div class="kcard"><div class="klbl">Ponto Equilíbrio</div><div class="kval">${peq.toFixed(1)} sc/ha<br><span style="font-size:.7rem;color:var(--muted)">Prod.: ${prod.toFixed(1)} sc/ha</span></div></div>
+    </div>
+  </div>`;
+}
+
+// ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
+async function ghGet(token,repo,path){
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+    {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+  if(r.status===404) return {sha:null,dados:[]};
+  if(!r.ok) throw new Error(`GitHub ${r.status}`);
+  const j=await r.json();
+  return {sha:j.sha, dados:JSON.parse(atob(j.content.replace(/\n/g,'')))};
+}
+
+async function ghPut(token,repo,path,dados,sha){
+  const body={message:`Coleta campo — ${new Date().toISOString().split('T')[0]}`,
+    content:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))};
+  if(sha) body.sha=sha;
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+    {method:'PUT',headers:{'Authorization':`token ${token}`,
+     'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+     body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||`GitHub ${r.status}`);}
+}
+
+async function syncPendentes(){
+  const {token,repo}=getCfg();
+  if(!token||!repo) return;
+  const todas=await dbAll();
+  const pend=todas.filter(e=>e.status==='pending');
+  if(!pend.length) return;
+  try{
+    const {sha,dados}=await ghGet(token,repo,'dados_campo.json');
+    const novos=pend.map(({id,status,created_at,...rest})=>rest);
+    await ghPut(token,repo,'dados_campo.json',[...dados,...novos],sha);
+    for(const e of pend) await dbPut({...e,status:'synced',synced_at:new Date().toISOString()});
+    atualizarBadge();
+    if(document.getElementById('page-pending').classList.contains('active')){
+      renderPending(); atualizarSbar();
+    }
+    showToast(`✅ ${pend.length} entrada(s) sincronizada(s) com GitHub!`);
+  }catch(err){
+    console.error(err);
+  }
+}
+
+async function syncAgora(){
+  const btn=document.getElementById('bsync');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span> Sincronizando...';
+  await syncPendentes();
+  btn.disabled=false;
+  btn.innerHTML='🔄 Sincronizar com GitHub Agora';
+}
+
+// ─── PENDENTES ────────────────────────────────────────────────────────────────
+async function renderPending(){
+  const todas=await dbAll();
+  todas.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const el=document.getElementById('elist');
+  const emp=document.getElementById('empty-state');
+  if(!todas.length){el.innerHTML='';emp.style.display='block';return;}
+  emp.style.display='none';
+  el.innerHTML=todas.map(e=>`
+    <div class="ecard">
+      <div class="ehead">
+        <span class="emun">${e.municipio}</span>
+        <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'⏳ Pendente':'✅ Sincronizado'}</span>
+      </div>
+      <div class="edet">${e.cultura} · ${e.area} ha · ${e.produtividade} sc/ha · Custo: ${brl(e.custo_ha)}/ha</div>
+      <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}</div>
+      <div style="text-align:right;margin-top:7px">
+        <button class="bdanger" onclick="delEntry(${e.id})">🗑️ Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+async function delEntry(id){
+  if(!confirm('Excluir esta entrada?')) return;
+  await dbDel(id);
+  atualizarBadge();
+  renderPending();
+}
+
+async function atualizarBadge(){
+  const todas=await dbAll();
+  const p=todas.filter(e=>e.status==='pending').length;
+  const b=document.getElementById('bcnt');
+  b.textContent=p; b.style.display=p?'block':'none';
+}
+
+async function atualizarSbar(){
+  const {token,repo}=getCfg();
+  const todas=await dbAll();
+  const p=todas.filter(e=>e.status==='pending').length;
+  const ic=document.getElementById('sbar-icon');
+  const tx=document.getElementById('sbar-txt');
+  const bs=document.getElementById('bsync');
+  if(!token||!repo){
+    ic.textContent='⚙️'; tx.textContent='Configure o GitHub em ⚙️ para ativar a sincronização'; bs.style.display='none';
+  }else if(!online){
+    ic.textContent='📴'; tx.textContent=`Offline — ${p} entrada(s) aguardando conexão`; bs.style.display='none';
+  }else if(p){
+    ic.textContent='🌐'; tx.textContent=`Online — ${p} entrada(s) prontas para sincronizar`; bs.style.display='block';
+  }else{
+    ic.textContent='✅'; tx.textContent='Tudo sincronizado com o GitHub'; bs.style.display='none';
+  }
+}
+
+// ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+function showPage(p){
+  ['form','pending','settings'].forEach(x=>{
+    document.getElementById('page-'+x).classList.toggle('active',x===p);
+    document.getElementById('nav-'+x).classList.toggle('active',x===p);
+  });
+  if(p==='pending'){renderPending();atualizarSbar();}
+  if(p==='settings') carregarCfg();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let _tt;
+function showToast(m,err=0){
+  const t=document.getElementById('toast');
+  t.textContent=m; t.className='toast show'+(err?' err2':'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.className='toast',3200);
+}
+
+// ─── ONLINE/OFFLINE ───────────────────────────────────────────────────────────
+function setOnline(v){
+  online=v;
+  document.getElementById('dot').className='dot'+(v?' on':'');
+  if(v){syncPendentes();if(document.getElementById('page-pending').classList.contains('active'))atualizarSbar();}
+}
+window.addEventListener('online', ()=>setOnline(true));
+window.addEventListener('offline',()=>setOnline(false));
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────────────────
+if('serviceWorker' in navigator)
+  navigator.serviceWorker.register('sw.js').catch(console.error);
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+openDB().then(()=>{
+  popularMunis();
+  setCult('Soja');
+  setOnline(navigator.onLine);
+  atualizarBadge();
+  if(online) syncPendentes();
+});
+</script>
+</body>
+</html>
