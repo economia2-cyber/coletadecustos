@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "data": "2026-06-02",
+    "tecnico": "Raphael",
+    "municipio": "Angélica",
+    "cultura": "Soja",
+    "area": 60,
+    "produtividade": 60,
+    "preco": 120,
+    "sementes": 6000,
+    "trat_semente": 6464,
+    "corretivo": 0,
+    "fertilizante": 0,
+    "fungicida": 0,
+    "herbicida": 0,
+    "inseticida": 0,
+    "inoculantes": 0,
+    "adjuvante": 0,
+    "maquinas": 0,
+    "seguro": 0,
+    "transporte": 0,
+    "armazenagem": 0,
+    "assist_tec": 0,
+    "manutencao": 0,
+    "mao_obra": 0,
+    "desp_admin": 0,
+    "juros": 0,
+    "outros": 0,
+    "deprec": 19500,
+    "custo_total_r": 31964,
+    "custo_ha": 532.7333333333333,
+    "custo_sc": 8.87888888888889,
+    "receita_ha": 7200,
+    "margem_ha": 6667.266666666666,
+    "ponto_eq": 4.439444444444445
+  }
+]
