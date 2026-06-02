@@ -1,5 +1,5 @@
-const CACHE = 'aprosoja-coleta-v1';
-const FILES = ['./index.html', './manifest.json'];
+const CACHE = 'aprosoja-coleta-v2';
+const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -16,9 +16,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Deixa passar requisições para GitHub API (sync online)
   if (e.request.url.includes('api.github.com')) return;
-
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       if (res.ok && e.request.method === 'GET') {
