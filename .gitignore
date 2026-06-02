@@ -20,3 +20,9 @@ sync_status.json
 *.bak
 Thumbs.db
 .DS_Store
+
+# Gerados pelo launcher
+_start.bat
+*.exe
+build_tmp/
+dist/
