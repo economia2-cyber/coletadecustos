@@ -290,7 +290,7 @@ def _pull_dados_github() -> bool:
         headers["Authorization"] = f"token {token}"
     try:
         req = urllib.request.Request(api, headers=headers)
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             data = _j.loads(r.read())
         content = base64.b64decode(data["content"].replace("\n", ""))
         with open(EXCEL_DADOS, "wb") as f:
@@ -318,7 +318,7 @@ def _push_dados_github() -> tuple:
     sha = None
     try:
         req = urllib.request.Request(api, headers=headers)
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             sha = _j.loads(r.read()).get("sha")
     except urllib.error.HTTPError as e:
         if e.code != 404:
@@ -333,14 +333,16 @@ def _push_dados_github() -> tuple:
     try:
         body = _j.dumps(payload).encode()
         req  = urllib.request.Request(api, data=body, headers=headers, method="PUT")
-        with urllib.request.urlopen(req):
+        with urllib.request.urlopen(req, timeout=10):
             pass
         return True, ""
     except Exception as e:
         return False, str(e)
 
 def salvar_produtor(municipio, cultura, valores, kpis):
-    _pull_dados_github()
+    # Pull só se online — não bloqueia o save local se estiver offline
+    if _check_online():
+        _pull_dados_github()
     if os.path.exists(EXCEL_DADOS):
         wb = openpyxl.load_workbook(EXCEL_DADOS)
     else:
@@ -400,7 +402,7 @@ def importar_dados_campo() -> tuple:
     # Baixa dados_campo.json
     try:
         req = urllib.request.Request(api, headers=headers)
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             meta = _j.loads(r.read())
         sha     = meta["sha"]
         entries = _j.loads(base64.b64decode(meta["content"].replace("\n", "")))
@@ -461,7 +463,7 @@ def importar_dados_campo() -> tuple:
             "sha": sha,
         }).encode()
         req = urllib.request.Request(api, data=body, headers={**headers, "Content-Type": "application/json"}, method="PUT")
-        with urllib.request.urlopen(req):
+        with urllib.request.urlopen(req, timeout=10):
             pass
     except Exception:
         pass  # não crítico
