@@ -138,9 +138,23 @@
     hr{border:none;border-top:1px solid var(--border);margin:14px 0}
     ::-webkit-scrollbar{width:3px}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  /* ── Splash screen ── */
+  #splash{position:fixed;inset:0;background:#000000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:9999;
+    transition:opacity .5s ease;gap:20px}
+  #splash img{width:80%;max-width:340px;object-fit:contain}
+  #splash .splash-sub{color:#7aa88a;font-size:.8rem;letter-spacing:1px}
+  #splash.fade{opacity:0;pointer-events:none}
   </style>
 </head>
 <body>
+
+<!-- Splash screen -->
+<div id="splash">
+  <img src="./Aprosoja-logo.png" alt="Aprosoja/MS"
+       onerror="this.src='';this.style.display='none'">
+  <div class="splash-sub">Coleta de Custos · Safra 2026/2027</div>
+</div>
 
 <div class="header">
   <img src="./Aprosoja-logo.png" alt="Aprosoja/MS"
@@ -605,6 +619,13 @@ window.addEventListener('offline',()=>setOnline(false));
 // ─── SERVICE WORKER ───────────────────────────────────────────────────────────
 if('serviceWorker' in navigator)
   navigator.serviceWorker.register('sw.js').catch(console.error);
+
+// ─── SPLASH ───────────────────────────────────────────────────────────────────
+setTimeout(()=>{
+  const s=document.getElementById('splash');
+  s.classList.add('fade');
+  setTimeout(()=>s.style.display='none', 500);
+}, 2500);
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 openDB().then(()=>{
