@@ -26,7 +26,7 @@ def _b64(path: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-_logo_path  = os.path.join(ASSETS, "Aprosoja-4.png")
+_logo_path  = os.path.join(ASSETS, "Aprosoja-logo.png")
 _fundo_path = os.path.join(ASSETS, "Fundo da pagina_clean.png")
 apro_b64  = _b64(_logo_path)  if os.path.exists(_logo_path)  else ""
 fundo_b64 = _b64(_fundo_path) if os.path.exists(_fundo_path) else None
