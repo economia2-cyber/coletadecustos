@@ -103,13 +103,13 @@ st.markdown(f"""
   hr {{ border-color: #1c3d28 !important; border-width: 1.5px !important; }}
 
   .apro-header {{
-      width:100%; background-color:#2D5416; border-radius:10px; overflow:hidden;
+      width:100%; background-color:#000000; border-radius:10px; overflow:hidden;
       margin-bottom:1rem; box-shadow:0 3px 10px rgba(0,0,0,.3);
       display:flex; align-items:center; justify-content:center; padding:16px 0;
   }}
   .apro-header img {{ width:50%; max-width:480px; display:block; }}
   .apro-footer {{
-      width:100%; background-color:#2D5416; border-radius:8px; overflow:hidden;
+      width:100%; background-color:#000000; border-radius:8px; overflow:hidden;
       margin-top:0.5rem; box-shadow:0 -2px 6px rgba(0,0,0,.15);
       display:flex; align-items:center; justify-content:center; padding:12px 0;
   }}
