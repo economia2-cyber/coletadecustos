@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "data": "2026-06-03",
+    "tecnico": "Teste",
+    "municipio": "Deodápolis",
+    "cultura": "Soja",
+    "area": 100,
+    "produtividade": 55,
+    "preco": 120,
+    "sementes": 10000,
+    "trat_semente": 1500,
+    "corretivo": 6000,
+    "fertilizante": 3500,
+    "fungicida": 1800,
+    "herbicida": 3000,
+    "inseticida": 6000,
+    "inoculantes": 3000,
+    "adjuvante": 3500,
+    "maquinas": 1500,
+    "seguro": 1555,
+    "transporte": 620,
+    "armazenagem": 500,
+    "assist_tec": 350,
+    "manutencao": 890,
+    "mao_obra": 1600,
+    "desp_admin": 1600,
+    "juros": 3500,
+    "outros": 600,
+    "deprec": 32500,
+    "custo_total_r": 83515,
+    "custo_ha": 835.15,
+    "custo_sc": 15.184545454545454,
+    "receita_ha": 6600,
+    "margem_ha": 5764.85,
+    "ponto_eq": 6.959583333333333
+  }
+]
