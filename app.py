@@ -503,12 +503,12 @@ with st.sidebar:
         )
     st.markdown("---")
 
-    _sel_now = st.session_state.get("_cultura_sel", "Soja IPRO")
+    _sel_now = st.session_state.get("_cultura_sel", "Soja")
     _c1, _c2 = st.columns(2)
     with _c1:
         if st.button("🌱 SOJA", use_container_width=True, key="btn_soja",
-                     type="primary" if _sel_now == "Soja IPRO" else "secondary"):
-            st.session_state["_cultura_sel"] = "Soja IPRO"
+                     type="primary" if _sel_now == "Soja" else "secondary"):
+            st.session_state["_cultura_sel"] = "Soja"
             st.rerun()
     with _c2:
         if st.button("🌽 MILHO", use_container_width=True, key="btn_milho",
@@ -516,7 +516,7 @@ with st.sidebar:
             st.session_state["_cultura_sel"] = "Milho"
             st.rerun()
 
-    _lbl_sel = "SOJA" if _sel_now == "Soja IPRO" else "MILHO"
+    _lbl_sel = "SOJA" if _sel_now == "Soja" else "MILHO"
     components.html(f"""
 <script>
 (function(){{
@@ -643,7 +643,7 @@ if "startup_sync_done" not in st.session_state:
         st.warning(f"⚠ Sincronização automática falhou: {_sync_err}")
 
 # ─── CONTEÚDO ─────────────────────────────────────────────────────────────────
-_cultura_display = cultura_sel.replace(" IPRO", "")
+_cultura_display = cultura_sel
 st.markdown(
     f'<h1 style="color:#e8f0eb;font-size:1.85rem;font-weight:800;'
     f'letter-spacing:2px;margin:8px 0 2px 0;line-height:1.2;font-family:{_FONT}">'
@@ -666,8 +666,8 @@ st.markdown(
 
 _municipios         = load_municipios()
 _preco_soja, _preco_milho = load_precos_ref()
-_preco_default      = _preco_soja if cultura_sel == "Soja IPRO" else _preco_milho
-_deprec_ref         = SOJA_DEPREC if cultura_sel == "Soja IPRO" else MILHO_DEPREC
+_preco_default      = _preco_soja if cultura_sel == "Soja" else _preco_milho
+_deprec_ref         = SOJA_DEPREC if cultura_sel == "Soja" else MILHO_DEPREC
 
 if "sim_clear_v" not in st.session_state:
     st.session_state["sim_clear_v"] = 0

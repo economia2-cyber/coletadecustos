@@ -152,7 +152,7 @@
 <!-- ════════════════ FORMULÁRIO ════════════════ -->
 <div id="page-form" class="page active">
   <div class="ptitle">📋 COLETA DE CUSTOS</div>
-  <div class="psub" id="psub">Soja IPRO · Safra 2026/2027 · Aprosoja/MS</div>
+  <div class="psub" id="psub">Soja · Safra 2026/2027 · Aprosoja/MS</div>
 
   <div class="cult">
     <button class="cbtn active" id="bs" onclick="setCult('Soja')">🌱 SOJA</button>
@@ -390,7 +390,7 @@ function setCult(c){
   cultura=c;
   document.getElementById('bs').className='cbtn'+(c==='Soja'?' active':'');
   document.getElementById('bm').className='cbtn'+(c==='Milho'?' active':'');
-  document.getElementById('psub').textContent=(c==='Soja'?'Soja IPRO':'Milho')+' · Safra 2026/2027 · Aprosoja/MS';
+  document.getElementById('psub').textContent=(c==='Soja'?'Soja':'Milho')+' · Safra 2026/2027 · Aprosoja/MS';
   const dEl=document.getElementById('deprec_ha');
   if(!dEl.value||dEl.value==DEPREC_REF[c==='Soja'?'Milho':'Soja']) dEl.value=DEPREC_REF[c].toFixed(2);
   document.getElementById('preco').placeholder=PRECO_REF[c].toFixed(2);
