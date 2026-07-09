@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#2D5416">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,7 +19,7 @@
     }
     html,body{height:100%;background:var(--bg);color:var(--light);
       font-family:'Segoe UI',Tahoma,Geneva,sans-serif;overscroll-behavior:none}
-    body{padding-bottom:64px;overflow-y:auto}
+    body{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px));overflow-y:auto}
 
     /* ── Header ── */
     .header{background:#000000;padding:10px 16px;display:flex;align-items:center;
@@ -105,7 +105,8 @@
 
     /* ── Bottom nav ── */
     .bnav{position:fixed;bottom:0;left:0;right:0;background:#060e09;
-      border-top:1px solid var(--border);display:flex;z-index:200}
+      border-top:1px solid var(--border);display:flex;z-index:200;
+      padding-bottom:env(safe-area-inset-bottom,0px)}
     .nbtn{flex:1;padding:10px 8px 7px;background:transparent;border:none;
       color:var(--muted);font-size:.62rem;cursor:pointer;
       display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
@@ -372,6 +373,7 @@ function salvar(){
     showToast(online?'✅ Salvo! Sincronizando...':'✅ Salvo offline. Sincronizará ao conectar.');
     document.getElementById('comparativo').innerHTML =
       '<div class="result"><div class="rtitle">📊 Calculando preço médio da região...</div></div>';
+    document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
     if(online){
       await syncPendentes();
       const stats = await carregarEstatisticas();
@@ -413,6 +415,7 @@ function mostrarComparativo(mun,preco,stats,offlineCache){
       <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${mun}</b> para comparar.
       Continue enviando — quanto mais produtores participarem, mais útil essa informação fica para todos.</div>
     </div>`;
+    el.scrollIntoView({behavior:'smooth',block:'end'});
     return;
   }
   const diff=((preco-s.media)/s.media)*100;
@@ -428,6 +431,7 @@ function mostrarComparativo(mun,preco,stats,offlineCache){
       <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.n}</div></div>
     </div>
   </div>`;
+  el.scrollIntoView({behavior:'smooth',block:'end'});
 }
 
 // ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
