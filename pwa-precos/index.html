@@ -376,11 +376,10 @@ function salvar(){
     document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
     if(online){
       await syncPendentes();
-      const stats = await carregarEstatisticas();
-      mostrarComparativo(mun, preco, stats, false);
+      const pack = await carregarEstatisticas();
+      mostrarComparativo(mun, preco, pack, false);
     }else{
-      const cache = getStatsCache();
-      mostrarComparativo(mun, preco, cache ? cache.stats : null, true);
+      mostrarComparativo(mun, preco, getStatsCache(), true);
     }
   });
 }
@@ -405,9 +404,9 @@ function mostrarResultado(tec,mun,preco){
   </div>`;
 }
 
-function mostrarComparativo(mun,preco,stats,offlineCache){
+function mostrarComparativo(mun,preco,pack,offlineCache){
   const el=document.getElementById('comparativo');
-  const s=stats && stats[mun];
+  const s=pack && pack.stats && pack.stats[mun];
   if(!s){
     el.innerHTML=`
     <div class="result">
@@ -421,6 +420,11 @@ function mostrarComparativo(mun,preco,stats,offlineCache){
   const diff=((preco-s.media)/s.media)*100;
   const sinal=diff>=0?'+':'';
   const cor=diff>=0?'g':'r';
+  const serie=(pack&&pack.entries)?serieMunicipio(pack.entries,mun):[];
+  const grafico=serie.length>=2
+    ? `<div style="margin-top:12px">${svgEvolucao(serie,s.media)}
+       <div class="klbl" style="margin-top:5px;text-align:center">EVOLUÇÃO DO PREÇO — ÚLTIMO MÊS · tracejado = média da região</div></div>`
+    : `<div class="edet" style="margin-top:10px;color:var(--label)">📈 O gráfico de evolução aparecerá quando houver coletas em mais de um dia.</div>`;
   el.innerHTML=`
   <div class="result">
     <div class="rtitle">📊 Preço médio em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
@@ -430,6 +434,7 @@ function mostrarComparativo(mun,preco,stats,offlineCache){
       <div class="kcard"><div class="klbl">Faixa (mín–máx)</div><div class="kval l" style="font-size:.82rem">${brl(s.min)} – ${brl(s.max)}</div></div>
       <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.n}</div></div>
     </div>
+    ${grafico}
   </div>`;
   el.scrollIntoView({behavior:'smooth',block:'end'});
 }
@@ -517,12 +522,65 @@ async function carregarEstatisticas(){
     ]);
     const todos=[...(oficial.dados||[]),...(campo.dados||[])];
     const stats=calcularStats(todos);
-    localStorage.setItem('precos_stats_cache',JSON.stringify({stats,ts:new Date().toISOString()}));
-    return stats;
+    const entries=todos.map(e=>({m:e.municipio,d:e.data,p:parseFloat(e.preco)}))
+                       .filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0);
+    const pack={stats,entries,ts:new Date().toISOString()};
+    localStorage.setItem('precos_stats_cache',JSON.stringify(pack));
+    return pack;
   }catch(err){
     console.error(err);
     return null;
   }
+}
+
+// Série diária (média por dia) dos últimos 30 dias para um município
+function serieMunicipio(entries,mun){
+  const lim=new Date(Date.now()-30*864e5).toISOString().split('T')[0];
+  const porDia={};
+  entries.forEach(e=>{
+    if(e.m!==mun||!e.d||e.d<lim) return;
+    (porDia[e.d]=porDia[e.d]||[]).push(e.p);
+  });
+  return Object.keys(porDia).sort()
+    .map(d=>({d,p:porDia[d].reduce((a,b)=>a+b,0)/porDia[d].length}));
+}
+
+// Gráfico SVG: evolução do preço no último mês + linha tracejada da média
+function svgEvolucao(serie,media){
+  const W=320,H=150,pl=36,pr=12,pt=14,pb=22;
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const t0=new Date(serie[0].d).getTime();
+  const t1=new Date(serie[serie.length-1].d).getTime();
+  const span=Math.max(t1-t0,1);
+  let vmin=Math.min(media,...serie.map(s=>s.p));
+  let vmax=Math.max(media,...serie.map(s=>s.p));
+  if(vmax-vmin<1){vmin-=1;vmax+=1;}
+  const pad=(vmax-vmin)*0.15; vmin-=pad; vmax+=pad;
+  const X=d=>pl+((new Date(d).getTime()-t0)/span)*iw;
+  const Y=v=>pt+ih-((v-vmin)/(vmax-vmin))*ih;
+  const pts=serie.map(s=>`${X(s.d).toFixed(1)},${Y(s.p).toFixed(1)}`).join(' ');
+  const area=`${X(serie[0].d).toFixed(1)},${(pt+ih).toFixed(1)} ${pts} ${X(serie[serie.length-1].d).toFixed(1)},${(pt+ih).toFixed(1)}`;
+  const last=serie[serie.length-1];
+  const fmt=v=>v.toFixed(1).replace('.',',');
+  const fdt=d=>d.slice(8,10)+'/'+d.slice(5,7);
+  const ym=Y(media);
+  const ymLbl=(ym-5<pt)?ym+11:ym-4;                       // não deixa o rótulo da média sair do topo
+  const lastLblY=Math.max(Y(last.p)-8,9);                 // idem para o rótulo do último ponto
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img"
+    aria-label="Evolução do preço no último mês, com linha tracejada indicando a média da região">
+    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" stroke="#1c3d28" stroke-width="1"/>
+    <line x1="${pl}" y1="${pt+ih}" x2="${W-pr}" y2="${pt+ih}" stroke="#1c3d28" stroke-width="1"/>
+    <text x="${pl-4}" y="${pt+4}" text-anchor="end" font-size="8" fill="#6a9978">${fmt(vmax)}</text>
+    <text x="${pl-4}" y="${pt+ih+3}" text-anchor="end" font-size="8" fill="#6a9978">${fmt(vmin)}</text>
+    <text x="${pl}" y="${H-6}" text-anchor="start" font-size="8" fill="#6a9978">${fdt(serie[0].d)}</text>
+    <text x="${W-pr}" y="${H-6}" text-anchor="end" font-size="8" fill="#6a9978">${fdt(last.d)}</text>
+    <polygon points="${area}" fill="#c8a415" opacity="0.1"/>
+    <line x1="${pl}" y1="${ym}" x2="${W-pr}" y2="${ym}" stroke="#7aa88a" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="${pl+3}" y="${ymLbl}" text-anchor="start" font-size="8" fill="#7aa88a">média ${fmt(media)}</text>
+    <polyline points="${pts}" fill="none" stroke="#c8a415" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${X(last.d).toFixed(1)}" cy="${Y(last.p).toFixed(1)}" r="4" fill="#c8a415" stroke="#122518" stroke-width="2"/>
+    <text x="${X(last.d).toFixed(1)}" y="${lastLblY.toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#e8f0eb">${fmt(last.p)}</text>
+  </svg>`;
 }
 
 function getStatsCache(){
@@ -560,12 +618,13 @@ async function renderStats(){
     return;
   }
   ic.textContent='🔄'; tx.textContent='Atualizando...';
-  const stats=await carregarEstatisticas();
-  if(!stats){
+  const pack=await carregarEstatisticas();
+  if(!pack){
     ic.textContent='⚠️'; tx.textContent='Não foi possível atualizar agora';
     if(!cacheOld) mostrarStatsVazio();
     return;
   }
+  const stats=pack.stats;
   const nMun=Object.keys(stats).length;
   if(!nMun){
     ic.textContent='✅'; tx.textContent='Atualizado agora';
