@@ -2,43 +2,49 @@
   {
     "data": "2026-07-09",
     "tecnico": "Raphael",
+    "municipio": "ÃÂÃÂgua Clara",
+    "preco": 110
+  },
+  {
+    "data": "2026-07-09",
+    "tecnico": "Raphael",
     "municipio": "ÃÂgua Clara",
+    "preco": 111
+  },
+  {
+    "data": "2026-07-09",
+    "tecnico": "Raphael",
+    "municipio": "Ãgua Clara",
+    "preco": 112
+  },
+  {
+    "data": "2026-07-09",
+    "tecnico": "Raphael",
+    "municipio": "Ãgua Clara",
     "preco": 110
   },
   {
     "data": "2026-07-09",
     "tecnico": "Raphael",
     "municipio": "Ãgua Clara",
-    "preco": 111
-  },
-  {
-    "data": "2026-07-09",
-    "tecnico": "Raphael",
-    "municipio": "Água Clara",
-    "preco": 112
-  },
-  {
-    "data": "2026-07-09",
-    "tecnico": "Raphael",
-    "municipio": "Água Clara",
-    "preco": 110
-  },
-  {
-    "data": "2026-07-09",
-    "tecnico": "Raphael",
-    "municipio": "Água Clara",
     "preco": 110.5
   },
   {
     "data": "2026-07-09",
     "tecnico": "Raphael",
-    "municipio": "Água Clara",
+    "municipio": "Ãgua Clara",
     "preco": 110.25
   },
   {
     "data": "2026-07-09",
     "tecnico": "Raphael",
-    "municipio": "Água Clara",
+    "municipio": "Ãgua Clara",
     "preco": 110
+  },
+  {
+    "data": "2026-07-09",
+    "tecnico": "Raphael",
+    "municipio": "Água Clara",
+    "preco": 109
   }
 ]
