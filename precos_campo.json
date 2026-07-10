@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "data": "2026-07-10",
+    "tecnico": "Gerente - RAPHAEL FLORES GIMENES",
+    "tipo_informante": "Gerente",
+    "nome": "RAPHAEL FLORES GIMENES",
+    "municipio": "Angélica",
+    "cultura": "Soja",
+    "preco": 105,
+    "data_negociacao": "2026-07-10",
+    "latitude": -20.46216,
+    "longitude": -54.581697,
+    "precisao_m": 13
+  }
+]
