@@ -222,10 +222,10 @@
   </div>
 </div>
 
-<!-- ════════════════ PREÇOS DA REGIÃO ════════════════ -->
+<!-- ════════════════ PREÇOS POR MUNICÍPIO ════════════════ -->
 <div id="page-stats" class="page">
-  <div class="ptitle">PREÇOS DA REGIÃO</div>
-  <div class="psub">Média informada pelos produtores que já contribuíram — obrigado por participar!</div>
+  <div class="ptitle">PREÇOS POR MUNICÍPIO</div>
+  <div class="psub">Lançamentos por data, informados pelos produtores que já contribuíram — obrigado por participar!</div>
 
   <div class="sbar" id="stats-sbar">
     <span id="stats-sbar-txt">Carregando...</span>
@@ -275,7 +275,7 @@
   <button class="nbtn"        id="nav-pending"  onclick="showPage('pending')">Pendentes
     <span id="bcnt" class="bcnt">0</span>
   </button>
-  <button class="nbtn"        id="nav-stats"    onclick="showPage('stats')">Região</button>
+  <button class="nbtn"        id="nav-stats"    onclick="showPage('stats')">Município</button>
   <button class="nbtn"        id="nav-settings" onclick="showPage('settings')">Ajustes</button>
 </nav>
 
@@ -744,14 +744,14 @@ async function renderStats(){
   const empEl=document.getElementById('stats-empty');
   const tx=document.getElementById('stats-sbar-txt');
 
-  if(cacheOld && Object.keys(cacheOld.stats).length){
+  if(cacheOld && (cacheOld.entries||[]).length){
     empEl.style.display='none';
-    listEl.innerHTML=renderStatsList(cacheOld.stats);
+    listEl.innerHTML=renderStatsList(cacheOld);
   }
 
   const {token,repo}=getCfg();
   if(!token||!repo){
-    tx.textContent='Configure a conexão na aba Ajustes para ver os preços da região';
+    tx.textContent='Configure a conexão na aba Ajustes para ver os preços por município';
     if(!cacheOld) mostrarStatsVazio();
     return;
   }
@@ -771,8 +771,7 @@ async function renderStats(){
     if(!cacheOld) mostrarStatsVazio();
     return;
   }
-  const stats=pack.stats;
-  const nMun=Object.keys(stats).length;
+  const nMun=new Set((pack.entries||[]).map(e=>e.m)).size;
   if(!nMun){
     tx.textContent='Atualizado agora';
     mostrarStatsVazio();
@@ -780,25 +779,45 @@ async function renderStats(){
   }
   tx.textContent=`Atualizado agora · ${nMun} município(s)`;
   empEl.style.display='none';
-  listEl.innerHTML=renderStatsList(stats);
+  listEl.innerHTML=renderStatsList(pack);
 }
 
-function renderStatsList(stats){
+// Lista por município, com os lançamentos separados por data (mais recente
+// primeiro) e por cultura — a data usada é a da negociação, quando informada
+function renderStatsList(pack){
   const ordemCult=['Soja','Milho','Não informada'];
   const rank=c=>{const i=ordemCult.indexOf(c);return i<0?99:i;};
-  const muns=Object.keys(stats).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const tree={};
+  (pack.entries||[]).forEach(e=>{
+    if(!e.m||!e.d||isNaN(e.p)||e.p<=0) return;
+    const c=(e.c||'').trim()||'Não informada';
+    const dias=tree[e.m]=tree[e.m]||{};
+    const grp=dias[e.d]=dias[e.d]||{};
+    (grp[c]=grp[c]||[]).push(e.p);
+  });
+  const muns=Object.keys(tree).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   return muns.map(m=>{
-    const cults=Object.keys(stats[m]).sort((a,b)=>rank(a)-rank(b));
-    return cults.map(c=>{
-      const s=stats[m][c];
-      return `<div class="ecard">
-        <div class="ehead">
-          <span class="emun">${m} · <span style="color:var(--gn)">${c}</span></span>
-          <span class="badge bsync2">${s.n} produtor(es)</span>
-        </div>
-        <div class="edet">Média: <b style="color:var(--gold)">${brl(s.media)}</b>/sc · Faixa: ${brl(s.min)} – ${brl(s.max)}</div>
-      </div>`;
+    const datas=Object.keys(tree[m]).sort().reverse();
+    let total=0;
+    const linhas=datas.map(d=>{
+      const cults=Object.keys(tree[m][d]).sort((a,b)=>rank(a)-rank(b));
+      return cults.map(c=>{
+        const ps=tree[m][d][c];
+        total+=ps.length;
+        const media=ps.reduce((a,b)=>a+b,0)/ps.length;
+        const faixa=ps.length>1?` · faixa ${brl(Math.min(...ps))} – ${brl(Math.max(...ps))}`:'';
+        return `<div class="edet" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
+          <b style="color:var(--light)">${fmtDataBR(d)}</b> · <span style="color:var(--gn)">${c}</span> —
+          <b style="color:var(--gold)">${brl(media)}</b>/sc${faixa} · ${ps.length} lançamento(s)</div>`;
+      }).join('');
     }).join('');
+    return `<div class="ecard">
+      <div class="ehead">
+        <span class="emun">${m}</span>
+        <span class="badge bsync2">${total} lançamento(s)</span>
+      </div>
+      ${linhas}
+    </div>`;
   }).join('');
 }
 
