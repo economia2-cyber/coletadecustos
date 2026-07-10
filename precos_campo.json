@@ -52,5 +52,11 @@
     "tecnico": "Test 3",
     "municipio": "Anaurilândia",
     "preco": 135
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 110
   }
 ]
