@@ -58,5 +58,11 @@
     "tecnico": "Test 3",
     "municipio": "Anaurilândia",
     "preco": 110
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Teste",
+    "municipio": "Água Clara",
+    "preco": 110
   }
 ]
