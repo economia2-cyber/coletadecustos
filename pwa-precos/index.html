@@ -356,10 +356,11 @@ const dbPut = e => new Promise((r,j)=>{const q=db.transaction('entries','readwri
 const dbDel = id=> new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').delete(id);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// O repositório já vem pré-configurado; o token NÃO fica no código (a página é
-// pública) — ele chega via link de configuração e fica só no aparelho.
-const REPO_DEFAULT='economia2-cyber/coletadecustos';
-const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo')||REPO_DEFAULT});
+// Os DADOS ficam no repositório privado 'coletadepreco'; o público só hospeda a
+// página. A chave 'gh_repo_precos' é própria deste app — 'gh_repo' pertence ao
+// app de Custos, que divide o mesmo domínio (localStorage compartilhado).
+const REPO_DEFAULT='economia2-cyber/coletadepreco';
+const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo_precos')||REPO_DEFAULT});
 
 // Link de configuração: aceita index.html?cfg=BASE64(token|repo) e index.html#cfg=...
 // Salva no localStorage e limpa o endereço para o token não ficar visível/no histórico.
@@ -376,7 +377,7 @@ const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localSto
     while(raw.length%4) raw+='=';
     const [t,r]=atob(raw).split('|');
     if(t) localStorage.setItem('gh_token',t.trim());
-    if(r) localStorage.setItem('gh_repo',r.trim());
+    if(r) localStorage.setItem('gh_repo_precos',r.trim());
     history.replaceState(null,'',location.pathname);
     setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
   }catch(e){console.error('Link de configuração inválido',e);}
@@ -385,14 +386,13 @@ const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localSto
 // Configuração padrão embutida (codificada) — permite que o link público
 // funcione sem nenhuma configuração manual. Um link ?cfg= ou o campo em
 // Ajustes continuam tendo prioridade sobre este valor.
-const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwb2g2Rjd4N3NRd2k1X05KSGF1S3pvT3VsRkxlZExtZWZwSVJaeklmdFNjSmZGN1hNNjdRakZ4eG9OVExVNUtWR1YwZ2Y4MGV0fGVjb25vbWlhMi1jeWJlci9jb2xldGFkZWN1c3Rvcw==';
+const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwb2g2Rjd4N3NRd2k1X05KSGF1S3pvT3VsRkxlZExtZWZwSVJaeklmdFNjSmZGN1hNNjdRakZ4eG9OVExVNUtWR1YwZ2Y4MGV0fGVjb25vbWlhMi1jeWJlci9jb2xldGFkZXByZWNv';
 (function(){
-  if(localStorage.getItem('gh_token')||CFG_EMBED.indexOf('__')===0) return;
+  if(localStorage.getItem('gh_repo_precos')||CFG_EMBED.indexOf('__')===0) return;
   try{
     const [t,r]=atob(CFG_EMBED).split('|');
-    if(t) localStorage.setItem('gh_token',t.trim());
-    if(r) localStorage.setItem('gh_repo',r.trim());
-    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
+    if(t&&!localStorage.getItem('gh_token')) localStorage.setItem('gh_token',t.trim());
+    if(r) localStorage.setItem('gh_repo_precos',r.trim());
   }catch(e){console.error('Configuração embutida inválida',e);}
 })();
 
@@ -401,7 +401,7 @@ function salvarCfg(){
   const r=document.getElementById('cfg-repo').value.trim();
   if(!r){showToast('Preencha o repositório',1);return;}
   if(t) localStorage.setItem('gh_token',t);   // vazio = mantém o token já salvo
-  localStorage.setItem('gh_repo',r);
+  localStorage.setItem('gh_repo_precos',r);
   if(!getCfg().token){showToast('Informe o token',1);return;}
   showToast('Configurações salvas.');
   carregarCfg();
