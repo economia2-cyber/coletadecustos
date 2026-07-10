@@ -1,4 +1,4 @@
-const CACHE = 'aprosoja-precos-v10';
+const CACHE = 'aprosoja-precos-v11';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png'];
 
 self.addEventListener('install', e => {
@@ -23,7 +23,9 @@ self.addEventListener('fetch', e => {
   // sem o leitor do link de configuração, o que impedia o token de ser salvo)
   if (e.request.mode === 'navigate' || e.request.url.includes('index.html')) {
     e.respondWith(
-      fetch(e.request).then(res => {
+      // cache:'no-cache' pula o cache HTTP do GitHub Pages (10 min) — sem isso
+      // a atualização demora a chegar mesmo com o network-first
+      fetch(e.request, { cache: 'no-cache' }).then(res => {
         const clone = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return res;
