@@ -34,5 +34,17 @@
     "municipio": "Anastácio",
     "cultura": "Soja",
     "preco": 110
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Produtor",
+    "tipo_informante": "Produtor",
+    "nome": "",
+    "municipio": "Água Clara",
+    "cultura": "Soja",
+    "preco": 120,
+    "latitude": -20.462172,
+    "longitude": -54.581705,
+    "precisao_m": 22
   }
 ]
