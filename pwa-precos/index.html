@@ -27,7 +27,7 @@
       box-shadow:0 2px 8px rgba(0,0,0,.5)}
     .header img{height:44px;max-width:220px;object-fit:contain}
     .header-title{color:#fff;font-weight:700;font-size:1rem;display:none}
-    .dot{position:absolute;right:14px;width:10px;height:10px;border-radius:50%;
+    .dot{position:absolute;right:14px;width:8px;height:8px;border-radius:50%;
       background:var(--red);transition:background .4s}
     .dot.on{background:var(--gn)}
 
@@ -44,6 +44,7 @@
     /* ── Fields ── */
     .fg{margin-bottom:9px}
     label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:3px}
+    .opt{color:var(--label);font-weight:400;font-style:italic}
     input,select,textarea{width:100%;padding:9px 11px;background:var(--ibg);
       border:1px solid var(--ibrd);border-radius:8px;color:var(--light);
       font-size:.88rem;outline:none;-webkit-appearance:none}
@@ -52,7 +53,8 @@
 
     /* ── Buttons ── */
     .bprimary{width:100%;padding:13px;background:var(--gold);color:#0e1a12;
-      border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:14px}
+      border:none;border-radius:10px;font-size:.92rem;font-weight:700;
+      letter-spacing:.5px;cursor:pointer;margin-top:14px}
     .bsecondary{width:100%;padding:10px;background:transparent;color:var(--muted);
       border:1px solid var(--border);border-radius:10px;font-size:.82rem;cursor:pointer;margin-top:7px}
     .bsync{width:100%;padding:11px;background:var(--gd);color:var(--gl);
@@ -84,11 +86,11 @@
     .kval.l{color:var(--light)}
     .kval.g{color:var(--gn)}
     .kval.r{color:var(--red)}
+    .ksub{font-size:.62rem;color:var(--muted);margin-top:3px}
 
     /* ── Sync bar ── */
     .sbar{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
-      padding:9px 13px;display:flex;align-items:center;gap:8px;
-      font-size:.77rem;color:var(--muted);margin-bottom:14px}
+      padding:9px 13px;font-size:.77rem;color:var(--muted);margin-bottom:14px}
 
     /* ── Entry cards ── */
     .ecard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;
@@ -101,8 +103,7 @@
     .bsync2{background:rgba(76,175,80,.15);color:var(--gn);border:1px solid var(--gn)}
 
     /* ── Empty state ── */
-    .empty{text-align:center;color:var(--muted);padding:40px 0}
-    .empty .ei{font-size:2.5rem;margin-bottom:8px}
+    .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:.85rem}
 
     /* ── Settings ── */
     .snote{background:rgba(200,164,21,.08);border:1px solid rgba(200,164,21,.25);
@@ -113,12 +114,12 @@
     .bnav{position:fixed;bottom:0;left:0;right:0;background:#060e09;
       border-top:1px solid var(--border);display:flex;z-index:200;
       padding-bottom:env(safe-area-inset-bottom,0px)}
-    .nbtn{flex:1;padding:10px 8px 7px;background:transparent;border:none;
-      color:var(--muted);font-size:.62rem;cursor:pointer;
-      display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
-    .nbtn .ni{font-size:1.25rem}
-    .nbtn.active{color:var(--gold)}
-    .bcnt{position:absolute;top:5px;left:50%;margin-left:2px;
+    .nbtn{flex:1;padding:16px 6px 14px;background:transparent;border:none;
+      border-top:2px solid transparent;color:var(--muted);font-size:.68rem;
+      font-weight:600;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;
+      position:relative}
+    .nbtn.active{color:var(--gold);border-top-color:var(--gold)}
+    .bcnt{position:absolute;top:6px;left:50%;margin-left:26px;
       background:#e74c3c;color:#fff;font-size:.58rem;padding:1px 4px;
       border-radius:8px;font-weight:700;display:none}
 
@@ -166,14 +167,23 @@
 
 <!-- ════════════════ FORMULÁRIO ════════════════ -->
 <div id="page-form" class="page active">
-  <div class="ptitle">💰 COLETA DE PREÇOS</div>
+  <div class="ptitle">COLETA DE PREÇOS</div>
   <div class="psub">Informe seu preço e veja como ele se compara à média da sua região</div>
 
   <div id="errs"></div>
 
   <div class="stitle">DADOS DA COLETA</div>
-  <div class="fg"><label>Técnico *</label>
-    <input type="text" id="tecnico" placeholder="Seu nome completo"></div>
+  <div class="fg"><label>Tipo de informante *</label>
+    <select id="tipo-informante" onchange="tipoChanged()">
+      <option value="">Selecione...</option>
+      <option value="Produtor">Produtor</option>
+      <option value="Técnico">Técnico</option>
+      <option value="Cerealista / Comprador">Cerealista / Comprador</option>
+      <option value="Outro">Outro</option>
+    </select></div>
+  <div class="fg" id="fg-nome" style="display:none">
+    <label>Nome <span class="opt">— preenchimento não obrigatório</span></label>
+    <input type="text" id="nome" placeholder="Informe seu nome, se desejar"></div>
   <div class="fg"><label>Município *</label>
     <select id="municipio"><option value="">Selecione...</option></select></div>
   <div class="fg"><label>Cultura *</label>
@@ -184,56 +194,52 @@
   <div class="fg"><label>Preço de venda (R$/sc) *</label>
     <input type="number" id="preco" placeholder="0.00" min="0" step="0.5" inputmode="decimal"></div>
 
-  <button class="bprimary" onclick="salvar()">💾 SALVAR</button>
-  <button class="bsecondary" onclick="limpar()">🗑️ LIMPAR FORMULÁRIO</button>
+  <button class="bprimary" onclick="salvar()">SALVAR</button>
+  <button class="bsecondary" onclick="limpar()">Limpar formulário</button>
   <div id="result"></div>
   <div id="comparativo"></div>
 </div>
 
 <!-- ════════════════ PENDENTES ════════════════ -->
 <div id="page-pending" class="page">
-  <div class="ptitle">📤 DADOS COLETADOS</div>
+  <div class="ptitle">DADOS COLETADOS</div>
   <div class="psub">Entradas salvas no dispositivo</div>
 
   <div class="sbar" id="sbar">
-    <span id="sbar-icon">🔄</span>
     <span id="sbar-txt">Verificando...</span>
   </div>
   <button class="bsync" id="bsync" onclick="syncAgora()" style="display:none">
-    🔄 Sincronizar com GitHub Agora
+    Sincronizar agora
   </button>
 
   <div id="elist"></div>
   <div class="empty" id="empty-state" style="display:none">
-    <div class="ei">✅</div>
-    <div>Nenhuma entrada salva</div>
+    Nenhuma entrada salva
   </div>
 </div>
 
 <!-- ════════════════ PREÇOS DA REGIÃO ════════════════ -->
 <div id="page-stats" class="page">
-  <div class="ptitle">📊 PREÇOS DA REGIÃO</div>
+  <div class="ptitle">PREÇOS DA REGIÃO</div>
   <div class="psub">Média informada pelos produtores que já contribuíram — obrigado por participar!</div>
 
   <div class="sbar" id="stats-sbar">
-    <span id="stats-sbar-icon">🔄</span>
     <span id="stats-sbar-txt">Carregando...</span>
   </div>
 
   <div id="stats-list"></div>
   <div class="empty" id="stats-empty" style="display:none">
-    <div class="ei">📊</div>
-    <div>Nenhum dado ainda.<br>Seja o primeiro a contribuir!</div>
+    Nenhum dado ainda.<br>Seja o primeiro a contribuir!
   </div>
 </div>
 
 <!-- ════════════════ CONFIGURAÇÕES ════════════════ -->
 <div id="page-settings" class="page">
-  <div class="ptitle">⚙️ CONFIGURAÇÕES</div>
-  <div class="psub">Conexão com GitHub para sincronização</div>
+  <div class="ptitle">AJUSTES</div>
+  <div class="psub">Conexão para sincronização dos dados</div>
 
   <div class="snote">
-    🔒 O token fica salvo <b>apenas neste dispositivo</b> e nunca é exibido.
+    O token de acesso fica salvo <b>apenas neste dispositivo</b> e nunca é exibido.
     Normalmente você não precisa mexer aqui: use o <b>link de configuração</b>
     fornecido pela Aprosoja/MS, que configura tudo automaticamente.
   </div>
@@ -243,7 +249,7 @@
   <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
     <input type="text" id="cfg-repo" placeholder="meu-usuario/meu-repositorio"></div>
 
-  <button class="bprimary" onclick="salvarCfg()">💾 SALVAR CONFIGURAÇÕES</button>
+  <button class="bprimary" onclick="salvarCfg()">Salvar configurações</button>
 
   <hr>
   <div class="stitle">MUNICÍPIOS (um por linha)</div>
@@ -251,7 +257,7 @@
     <label>Personalize a lista de municípios disponíveis no formulário</label>
     <textarea id="cfg-munis" rows="8" style="resize:vertical" placeholder="Campo Grande&#10;Dourados&#10;Maracaju&#10;..."></textarea>
   </div>
-  <button class="bprimary" onclick="salvarMunis()">💾 SALVAR MUNICÍPIOS</button>
+  <button class="bprimary" onclick="salvarMunis()">Salvar municípios</button>
 
   <hr>
   <p style="text-align:center;color:var(--label);font-size:.7rem;padding:6px 0">
@@ -261,16 +267,12 @@
 
 <!-- Bottom nav -->
 <nav class="bnav">
-  <button class="nbtn active" id="nav-form"     onclick="showPage('form')">
-    <span class="ni">💰</span>Coleta</button>
-  <button class="nbtn"        id="nav-pending"  onclick="showPage('pending')" style="position:relative">
-    <span class="ni">📤</span>Pendentes
+  <button class="nbtn active" id="nav-form"     onclick="showPage('form')">Coleta</button>
+  <button class="nbtn"        id="nav-pending"  onclick="showPage('pending')">Pendentes
     <span id="bcnt" class="bcnt">0</span>
   </button>
-  <button class="nbtn"        id="nav-stats"    onclick="showPage('stats')">
-    <span class="ni">📊</span>Região</button>
-  <button class="nbtn"        id="nav-settings" onclick="showPage('settings')">
-    <span class="ni">⚙️</span>Config</button>
+  <button class="nbtn"        id="nav-stats"    onclick="showPage('stats')">Região</button>
+  <button class="nbtn"        id="nav-settings" onclick="showPage('settings')">Ajustes</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -319,21 +321,29 @@ const dbDel = id=> new Promise((r,j)=>{const q=db.transaction('entries','readwri
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // O repositório já vem pré-configurado; o token NÃO fica no código (a página é
-// pública) — ele chega via link de configuração (#cfg=...) e fica só no aparelho.
+// pública) — ele chega via link de configuração e fica só no aparelho.
 const REPO_DEFAULT='economia2-cyber/coletadecustos';
 const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo')||REPO_DEFAULT});
 
-// Link de configuração: index.html#cfg=BASE64(token|repo)
-// Salva no localStorage e limpa o endereço para o token não ficar visível/no histórico
+// Link de configuração: aceita index.html?cfg=BASE64(token|repo) e index.html#cfg=...
+// Salva no localStorage e limpa o endereço para o token não ficar visível/no histórico.
+// A decodificação é tolerante: aceita base64url e conserta '+' virando espaço ou
+// '=' final removido por aplicativos de mensagem.
 (function(){
-  if(!location.hash.startsWith('#cfg=')) return;
+  let raw='';
+  const m=location.search.match(/[?&]cfg=([^&]+)/);
+  if(m) raw=m[1];
+  else if(location.hash.startsWith('#cfg=')) raw=location.hash.slice(5);
+  if(!raw) return;
   try{
-    const [t,r]=atob(decodeURIComponent(location.hash.slice(5))).split('|');
+    raw=decodeURIComponent(raw).replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/').replace(/[\r\n\t]/g,'');
+    while(raw.length%4) raw+='=';
+    const [t,r]=atob(raw).split('|');
     if(t) localStorage.setItem('gh_token',t.trim());
     if(r) localStorage.setItem('gh_repo',r.trim());
-    history.replaceState(null,'',location.pathname+location.search);
-    setTimeout(()=>showToast('✅ Conexão configurada automaticamente!'),800);
-  }catch(e){console.error('cfg link inválido',e);}
+    history.replaceState(null,'',location.pathname);
+    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
+  }catch(e){console.error('Link de configuração inválido',e);}
 })();
 
 function salvarCfg(){
@@ -343,7 +353,7 @@ function salvarCfg(){
   if(t) localStorage.setItem('gh_token',t);   // vazio = mantém o token já salvo
   localStorage.setItem('gh_repo',r);
   if(!getCfg().token){showToast('Informe o token',1);return;}
-  showToast('✅ Configurações salvas!');
+  showToast('Configurações salvas.');
   carregarCfg();
 }
 
@@ -353,7 +363,7 @@ function salvarMunis(){
   if(!m.length){showToast('Adicione ao menos um município',1);return;}
   localStorage.setItem('munis_custom',JSON.stringify(m));
   popularMunis();
-  showToast(`✅ ${m.length} municípios salvos!`);
+  showToast(`${m.length} municípios salvos.`);
 }
 
 function carregarCfg(){
@@ -361,7 +371,7 @@ function carregarCfg(){
   // O token salvo nunca é exibido — o campo só mostra se está configurado
   const tEl=document.getElementById('cfg-token');
   tEl.value='';
-  tEl.placeholder=token?'✓ Token configurado — digite aqui só para trocar':'ghp_xxxxxxxxxxxxxxxxxxxx';
+  tEl.placeholder=token?'Token configurado — digite aqui só para trocar':'ghp_xxxxxxxxxxxxxxxxxxxx';
   document.getElementById('cfg-repo').value=repo;
   const m=localStorage.getItem('munis_custom');
   if(m) document.getElementById('cfg-munis').value=JSON.parse(m).join('\n');
@@ -387,33 +397,43 @@ function setCultura(c){
   document.getElementById('cbtn-milho').classList.toggle('sel',c==='Milho');
 }
 
+// Mostra o campo de nome (opcional) assim que o tipo de informante é escolhido
+function tipoChanged(){
+  const tipo=document.getElementById('tipo-informante').value;
+  document.getElementById('fg-nome').style.display=tipo?'block':'none';
+}
+
 function salvar(){
-  const tecnico=document.getElementById('tecnico').value.trim();
+  const tipo=document.getElementById('tipo-informante').value;
+  const nome=document.getElementById('nome').value.trim();
   const mun=document.getElementById('municipio').value;
   const preco=n('preco');
   document.getElementById('errs').innerHTML='';
   const erros=[];
-  if(!tecnico) erros.push('Técnico é obrigatório.');
+  if(!tipo)    erros.push('Selecione o tipo de informante.');
   if(!mun)     erros.push('Município é obrigatório.');
   if(!cultura) erros.push('Selecione a cultura (Soja ou Milho).');
   if(preco<=0) erros.push('Preço de venda deve ser maior que zero.');
   if(erros.length){
-    document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">⚠️ ${e}</div>`).join('');
+    document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">${e}</div>`).join('');
     return;
   }
 
   const entry={
     data:new Date().toISOString().split('T')[0],
-    tecnico, municipio:mun, cultura, preco,
+    // "tecnico" mantém compatibilidade com a planilha do escritório
+    tecnico:nome?`${tipo} - ${nome}`:tipo,
+    tipo_informante:tipo, nome,
+    municipio:mun, cultura, preco,
     status:'pending', created_at:new Date().toISOString(),
   };
 
   dbAdd(entry).then(async ()=>{
     atualizarBadge();
-    mostrarResultado(tecnico,mun,cultura,preco);
-    showToast(online?'✅ Salvo! Sincronizando...':'✅ Salvo offline. Sincronizará ao conectar.');
+    mostrarResultado(tipo,nome,mun,cultura,preco);
+    showToast(online?'Salvo. Sincronizando...':'Salvo no dispositivo. Sincronizará ao conectar.');
     document.getElementById('comparativo').innerHTML =
-      '<div class="result"><div class="rtitle">📊 Calculando preço médio da região...</div></div>';
+      '<div class="result"><div class="rtitle">Calculando preço médio da região...</div></div>';
     document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
     if(online){
       await syncPendentes();
@@ -426,7 +446,9 @@ function salvar(){
 }
 
 function limpar(){
-  document.getElementById('tecnico').value='';
+  document.getElementById('tipo-informante').selectedIndex=0;
+  document.getElementById('nome').value='';
+  document.getElementById('fg-nome').style.display='none';
   document.getElementById('municipio').selectedIndex=0;
   setCultura('');
   document.getElementById('preco').value='';
@@ -434,12 +456,12 @@ function limpar(){
   document.getElementById('result').innerHTML='';
 }
 
-function mostrarResultado(tec,mun,cult,preco){
+function mostrarResultado(tipo,nome,mun,cult,preco){
   document.getElementById('result').innerHTML=`
   <div class="result">
     <div class="rtitle">Resultado — ${mun} · ${cult}</div>
     <div class="kgrid">
-      <div class="kcard"><div class="klbl">Técnico</div><div class="kval l">${tec}</div></div>
+      <div class="kcard"><div class="klbl">Informante</div><div class="kval l">${tipo}</div>${nome?`<div class="ksub">${nome}</div>`:''}</div>
       <div class="kcard"><div class="klbl">Município</div><div class="kval l">${mun}</div></div>
       <div class="kcard"><div class="klbl">Cultura</div><div class="kval g">${cult}</div></div>
       <div class="kcard"><div class="klbl">Preço de Venda</div><div class="kval">${brl(preco)} <span style="font-size:.65rem;color:var(--muted)">/sc</span></div></div>
@@ -453,7 +475,7 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   if(!s){
     el.innerHTML=`
     <div class="result">
-      <div class="rtitle">📊 Preço médio da região</div>
+      <div class="rtitle">Preço médio da região</div>
       <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${cult}</b> em
       <b style="color:var(--light)">${mun}</b> para comparar.
       Continue enviando — quanto mais produtores participarem, mais útil essa informação fica para todos.</div>
@@ -468,10 +490,10 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   const grafico=serie.length>=2
     ? `<div style="margin-top:12px">${svgEvolucao(serie,s.media)}
        <div class="klbl" style="margin-top:5px;text-align:center">EVOLUÇÃO DO PREÇO — ÚLTIMO MÊS · tracejado = média da região</div></div>`
-    : `<div class="edet" style="margin-top:10px;color:var(--label)">📈 O gráfico de evolução aparecerá quando houver coletas em mais de um dia.</div>`;
+    : `<div class="edet" style="margin-top:10px;color:var(--label)">O gráfico de evolução aparecerá quando houver coletas em mais de um dia.</div>`;
   el.innerHTML=`
   <div class="result">
-    <div class="rtitle">📊 Preço médio de ${cult} em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
+    <div class="rtitle">Preço médio de ${cult} em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
     <div class="kgrid">
       <div class="kcard"><div class="klbl">Média da Região</div><div class="kval l">${brl(s.media)}</div></div>
       <div class="kcard"><div class="klbl">Você vs. Média</div><div class="kval ${cor}">${sinal}${diff.toFixed(1)}%</div></div>
@@ -522,7 +544,7 @@ async function syncPendentes(){
     if(document.getElementById('page-pending').classList.contains('active')){
       renderPending(); atualizarSbar();
     }
-    showToast(`✅ ${pend.length} entrada(s) sincronizada(s) com GitHub!`);
+    showToast(`${pend.length} entrada(s) sincronizada(s).`);
   }catch(err){
     console.error(err);
   }
@@ -534,7 +556,7 @@ async function syncAgora(){
   btn.innerHTML='<span class="spin"></span> Sincronizando...';
   await syncPendentes();
   btn.disabled=false;
-  btn.innerHTML='🔄 Sincronizar com GitHub Agora';
+  btn.innerHTML='Sincronizar agora';
 }
 
 // ─── PREÇOS DA REGIÃO (valor devolvido ao produtor em troca do dado) ──────────
@@ -645,7 +667,6 @@ async function renderStats(){
   const cacheOld=getStatsCache();
   const listEl=document.getElementById('stats-list');
   const empEl=document.getElementById('stats-empty');
-  const ic=document.getElementById('stats-sbar-icon');
   const tx=document.getElementById('stats-sbar-txt');
 
   if(cacheOld && Object.keys(cacheOld.stats).length){
@@ -655,35 +676,34 @@ async function renderStats(){
 
   const {token,repo}=getCfg();
   if(!token||!repo){
-    ic.textContent='⚙️'; tx.textContent='Configure o GitHub em ⚙️ para ver os preços da região';
+    tx.textContent='Configure a conexão na aba Ajustes para ver os preços da região';
     if(!cacheOld) mostrarStatsVazio();
     return;
   }
   if(!online){
     if(cacheOld){
-      ic.textContent='📴';
       tx.textContent=`Offline — dados de ${new Date(cacheOld.ts).toLocaleString('pt-BR')}`;
     }else{
-      ic.textContent='📴'; tx.textContent='Offline — sem dados salvos ainda';
+      tx.textContent='Offline — sem dados salvos ainda';
       mostrarStatsVazio();
     }
     return;
   }
-  ic.textContent='🔄'; tx.textContent='Atualizando...';
+  tx.textContent='Atualizando...';
   const pack=await carregarEstatisticas();
   if(!pack){
-    ic.textContent='⚠️'; tx.textContent='Não foi possível atualizar agora';
+    tx.textContent='Não foi possível atualizar agora';
     if(!cacheOld) mostrarStatsVazio();
     return;
   }
   const stats=pack.stats;
   const nMun=Object.keys(stats).length;
   if(!nMun){
-    ic.textContent='✅'; tx.textContent='Atualizado agora';
+    tx.textContent='Atualizado agora';
     mostrarStatsVazio();
     return;
   }
-  ic.textContent='✅'; tx.textContent=`Atualizado agora · ${nMun} município(s)`;
+  tx.textContent=`Atualizado agora · ${nMun} município(s)`;
   empEl.style.display='none';
   listEl.innerHTML=renderStatsList(stats);
 }
@@ -724,12 +744,12 @@ async function renderPending(){
     <div class="ecard">
       <div class="ehead">
         <span class="emun">${e.municipio}</span>
-        <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'⏳ Pendente':'✅ Sincronizado'}</span>
+        <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'Pendente':'Sincronizado'}</span>
       </div>
       <div class="edet">${e.tecnico||''} · ${e.cultura?e.cultura+' · ':''}${brl(e.preco)}/sc</div>
       <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}</div>
       <div style="text-align:right;margin-top:7px">
-        <button class="bdanger" onclick="delEntry(${e.id})">🗑️ Excluir</button>
+        <button class="bdanger" onclick="delEntry(${e.id})">Excluir</button>
       </div>
     </div>`).join('');
 }
@@ -752,17 +772,16 @@ async function atualizarSbar(){
   const {token,repo}=getCfg();
   const todas=await dbAll();
   const p=todas.filter(e=>e.status==='pending').length;
-  const ic=document.getElementById('sbar-icon');
   const tx=document.getElementById('sbar-txt');
   const bs=document.getElementById('bsync');
   if(!token||!repo){
-    ic.textContent='⚙️'; tx.textContent='Configure o GitHub em ⚙️ para ativar a sincronização'; bs.style.display='none';
+    tx.textContent='Configure a conexão na aba Ajustes para ativar a sincronização'; bs.style.display='none';
   }else if(!online){
-    ic.textContent='📴'; tx.textContent=`Offline — ${p} entrada(s) aguardando conexão`; bs.style.display='none';
+    tx.textContent=`Offline — ${p} entrada(s) aguardando conexão`; bs.style.display='none';
   }else if(p){
-    ic.textContent='🌐'; tx.textContent=`Online — ${p} entrada(s) prontas para sincronizar`; bs.style.display='block';
+    tx.textContent=`Online — ${p} entrada(s) prontas para sincronizar`; bs.style.display='block';
   }else{
-    ic.textContent='✅'; tx.textContent='Tudo sincronizado com o GitHub'; bs.style.display='none';
+    tx.textContent='Todos os dados estão sincronizados'; bs.style.display='none';
   }
 }
 
