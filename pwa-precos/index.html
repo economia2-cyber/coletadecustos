@@ -984,8 +984,20 @@ window.addEventListener('online', ()=>setOnline(true));
 window.addEventListener('offline',()=>setOnline(false));
 
 // ─── SERVICE WORKER ───────────────────────────────────────────────────────────
-if('serviceWorker' in navigator)
-  navigator.serviceWorker.register('sw.js').catch(console.error);
+// Atualização automática: força a checagem do sw.js a cada abertura e, quando
+// uma versão nova assume o controle, recarrega a página uma única vez — sem
+// isso o aparelho só pegava a versão nova na segunda abertura do app.
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js')
+    .then(reg=>{ reg.update().catch(()=>{}); })
+    .catch(console.error);
+  let _swReload=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(_swReload) return;
+    _swReload=true;
+    location.reload();
+  });
+}
 
 // ─── SPLASH ───────────────────────────────────────────────────────────────────
 setTimeout(()=>{
