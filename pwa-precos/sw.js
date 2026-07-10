@@ -1,4 +1,4 @@
-const CACHE = 'aprosoja-precos-v6';
+const CACHE = 'aprosoja-precos-v7';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png'];
 
 self.addEventListener('install', e => {
@@ -17,6 +17,24 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('api.github.com')) return;
+
+  // Página: network-first, senão as atualizações do app nunca chegam a quem
+  // já instalou (o cache antigo era servido para sempre — inclusive a versão
+  // sem o leitor do link de configuração, o que impedia o token de ser salvo)
+  if (e.request.mode === 'navigate' || e.request.url.includes('index.html')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() =>
+        caches.match(e.request).then(c => c || caches.match('./index.html'))
+      )
+    );
+    return;
+  }
+
+  // Demais recursos (ícones, logo, manifest): cache-first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       if (res.ok && e.request.method === 'GET') {
