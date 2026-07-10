@@ -49,6 +49,7 @@
       border:1px solid var(--ibrd);border-radius:8px;color:var(--light);
       font-size:.88rem;outline:none;-webkit-appearance:none}
     input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+    input[type=date]{color-scheme:dark;min-height:38px}
     select option{background:var(--bg2)}
 
     /* ── Buttons ── */
@@ -192,6 +193,8 @@
       <button type="button" class="cbtn" id="cbtn-soja"  onclick="setCultura('Soja')">Soja</button>
       <button type="button" class="cbtn" id="cbtn-milho" onclick="setCultura('Milho')">Milho</button>
     </div></div>
+  <div class="fg"><label>Data de negociação *</label>
+    <input type="date" id="data-neg"></div>
   <div class="fg"><label>Preço de venda (R$/sc) *</label>
     <input type="number" id="preco" placeholder="0.00" min="0" step="0.5" inputmode="decimal"></div>
 
@@ -448,16 +451,26 @@ function obterPosicao(timeout=8000){
   });
 }
 
+// Data da negociação: padrão = hoje; não aceita data futura
+const hojeISO=()=>new Date().toISOString().split('T')[0];
+function initDataNeg(){
+  const el=document.getElementById('data-neg');
+  el.value=hojeISO(); el.max=hojeISO();
+}
+
 async function salvar(){
   const tipo=document.getElementById('tipo-informante').value;
   const nome=document.getElementById('nome').value.trim();
   const mun=document.getElementById('municipio').value;
+  const dataNeg=document.getElementById('data-neg').value;
   const preco=n('preco');
   document.getElementById('errs').innerHTML='';
   const erros=[];
   if(!tipo)    erros.push('Selecione o tipo de informante.');
   if(!mun)     erros.push('Município é obrigatório.');
   if(!cultura) erros.push('Selecione a cultura (Soja ou Milho).');
+  if(!dataNeg) erros.push('Informe a data de negociação.');
+  else if(dataNeg>hojeISO()) erros.push('A data de negociação não pode ser futura.');
   if(preco<=0) erros.push('Preço de venda deve ser maior que zero.');
   if(erros.length){
     document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">${e}</div>`).join('');
@@ -478,6 +491,7 @@ async function salvar(){
     tecnico:nome?`${tipo} - ${nome}`:tipo,
     tipo_informante:tipo, nome,
     municipio:mun, cultura, preco,
+    data_negociacao:dataNeg,
     latitude:pos?+pos.lat.toFixed(6):null,
     longitude:pos?+pos.lng.toFixed(6):null,
     precisao_m:pos&&pos.acc!=null?Math.round(pos.acc):null,
@@ -486,7 +500,7 @@ async function salvar(){
 
   dbAdd(entry).then(async ()=>{
     atualizarBadge();
-    mostrarResultado(tipo,nome,mun,cultura,preco);
+    mostrarResultado(tipo,nome,mun,cultura,preco,dataNeg);
     showToast(online?'Salvo. Sincronizando...':'Salvo no dispositivo. Sincronizará ao conectar.');
     document.getElementById('comparativo').innerHTML =
       '<div class="result"><div class="rtitle">Calculando preço médio da região...</div></div>';
@@ -507,12 +521,14 @@ function limpar(){
   document.getElementById('fg-nome').style.display='none';
   document.getElementById('municipio').selectedIndex=0;
   setCultura('');
+  initDataNeg();
   document.getElementById('preco').value='';
   document.getElementById('errs').innerHTML='';
   document.getElementById('result').innerHTML='';
 }
 
-function mostrarResultado(tipo,nome,mun,cult,preco){
+const fmtDataBR=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4):'';
+function mostrarResultado(tipo,nome,mun,cult,preco,dataNeg){
   document.getElementById('result').innerHTML=`
   <div class="result">
     <div class="rtitle">Resultado — ${mun} · ${cult}</div>
@@ -520,6 +536,7 @@ function mostrarResultado(tipo,nome,mun,cult,preco){
       <div class="kcard"><div class="klbl">Informante</div><div class="kval l">${tipo}</div>${nome?`<div class="ksub">${nome}</div>`:''}</div>
       <div class="kcard"><div class="klbl">Município</div><div class="kval l">${mun}</div></div>
       <div class="kcard"><div class="klbl">Cultura</div><div class="kval g">${cult}</div></div>
+      <div class="kcard"><div class="klbl">Data de Negociação</div><div class="kval l">${fmtDataBR(dataNeg)}</div></div>
       <div class="kcard"><div class="klbl">Preço de Venda</div><div class="kval">${brl(preco)} <span style="font-size:.65rem;color:var(--muted)">/sc</span></div></div>
     </div>
   </div>`;
@@ -652,7 +669,9 @@ async function carregarEstatisticas(){
     ]);
     const todos=[...(oficial.dados||[]),...(campo.dados||[])];
     const stats=calcularStats(todos);
-    const entries=todos.map(e=>({m:e.municipio,d:e.data,p:parseFloat(e.preco),c:(e.cultura||'').trim()}))
+    // Para a evolução do preço vale a data em que o negócio foi fechado,
+    // não a data do lançamento (registros antigos só têm a de lançamento)
+    const entries=todos.map(e=>({m:e.municipio,d:e.data_negociacao||e.data,p:parseFloat(e.preco),c:(e.cultura||'').trim()}))
                        .filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0);
     const pack={stats,entries,ts:new Date().toISOString()};
     localStorage.setItem('precos_stats_cache_v2',JSON.stringify(pack));
@@ -802,7 +821,7 @@ async function renderPending(){
         <span class="emun">${e.municipio}</span>
         <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'Pendente':'Sincronizado'}</span>
       </div>
-      <div class="edet">${e.tecnico||''} · ${e.cultura?e.cultura+' · ':''}${brl(e.preco)}/sc</div>
+      <div class="edet">${e.tecnico||''} · ${e.cultura?e.cultura+' · ':''}${brl(e.preco)}/sc${e.data_negociacao?` · negociado em ${fmtDataBR(e.data_negociacao)}`:''}</div>
       <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}${e.latitude!=null&&e.longitude!=null?` · 📍 ${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}`:''}</div>
       <div style="text-align:right;margin-top:7px">
         <button class="bdanger" onclick="delEntry(${e.id})">Excluir</button>
@@ -888,6 +907,7 @@ setTimeout(()=>{
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 openDB().then(()=>{
   popularMunis();
+  initDataNeg();
   setOnline(navigator.onLine);
   atualizarBadge();
   aquecerGPS();
