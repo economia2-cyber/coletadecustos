@@ -11,5 +11,18 @@
     "latitude": -20.462173,
     "longitude": -54.581695,
     "precisao_m": 22
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Produtor",
+    "tipo_informante": "Produtor",
+    "nome": "",
+    "municipio": "Água Clara",
+    "cultura": "Soja",
+    "preco": 111,
+    "data_negociacao": "2026-07-04",
+    "latitude": -20.462173,
+    "longitude": -54.581695,
+    "precisao_m": 22
   }
 ]
