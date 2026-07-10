@@ -24,5 +24,12 @@
     "municipio": "Água Clara",
     "cultura": "Milho",
     "preco": 55
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Linneu",
+    "municipio": "Rio Brilhante",
+    "cultura": "Soja",
+    "preco": 105
   }
 ]
