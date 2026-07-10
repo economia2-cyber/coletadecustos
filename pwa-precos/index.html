@@ -418,7 +418,37 @@ function tipoChanged(){
   document.getElementById('fg-nome').style.display=tipo?'block':'none';
 }
 
-function salvar(){
+// ─── GEOLOCALIZAÇÃO ───────────────────────────────────────────────────────────
+// A posição é capturada no momento do SALVAR, mas nunca impede o salvamento:
+// se o GPS falhar, demorar ou a permissão for negada, o preço é salvo sem
+// coordenadas. Uma última posição conhecida fica em cache como reserva.
+let ultimaPos=null;
+function guardarPos(p){
+  ultimaPos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
+}
+// Aquecimento: pede a posição já na abertura do app, para a permissão ser
+// concedida antes da primeira coleta e o GPS já estar "acordado" no salvar.
+function aquecerGPS(){
+  if(!('geolocation' in navigator)) return;
+  navigator.geolocation.getCurrentPosition(guardarPos,()=>{},{
+    enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
+// Devolve {lat,lng,acc} ou null — espera no máximo `timeout` ms pelo GPS.
+function obterPosicao(timeout=8000){
+  return new Promise(res=>{
+    if(!('geolocation' in navigator)){res(null);return;}
+    let done=false;
+    const fim=v=>{if(!done){done=true;res(v);}};
+    navigator.geolocation.getCurrentPosition(
+      p=>{guardarPos(p);fim({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});},
+      ()=>fim(ultimaPos?{lat:ultimaPos.lat,lng:ultimaPos.lng,acc:ultimaPos.acc}:null),
+      {enableHighAccuracy:true,timeout,maximumAge:120000});
+    // getCurrentPosition às vezes não chama nenhum callback — garante a resposta
+    setTimeout(()=>fim(ultimaPos?{lat:ultimaPos.lat,lng:ultimaPos.lng,acc:ultimaPos.acc}:null),timeout+1500);
+  });
+}
+
+async function salvar(){
   const tipo=document.getElementById('tipo-informante').value;
   const nome=document.getElementById('nome').value.trim();
   const mun=document.getElementById('municipio').value;
@@ -434,12 +464,23 @@ function salvar(){
     return;
   }
 
+  // Captura a localização (não bloqueia o salvamento se falhar)
+  const btnSalvar=document.querySelector('#page-form .bprimary');
+  btnSalvar.disabled=true;
+  btnSalvar.innerHTML='<span class="spin"></span> Obtendo localização...';
+  const pos=await obterPosicao();
+  btnSalvar.disabled=false;
+  btnSalvar.textContent='SALVAR';
+
   const entry={
     data:new Date().toISOString().split('T')[0],
     // "tecnico" mantém compatibilidade com a planilha do escritório
     tecnico:nome?`${tipo} - ${nome}`:tipo,
     tipo_informante:tipo, nome,
     municipio:mun, cultura, preco,
+    latitude:pos?+pos.lat.toFixed(6):null,
+    longitude:pos?+pos.lng.toFixed(6):null,
+    precisao_m:pos&&pos.acc!=null?Math.round(pos.acc):null,
     status:'pending', created_at:new Date().toISOString(),
   };
 
@@ -762,7 +803,7 @@ async function renderPending(){
         <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'Pendente':'Sincronizado'}</span>
       </div>
       <div class="edet">${e.tecnico||''} · ${e.cultura?e.cultura+' · ':''}${brl(e.preco)}/sc</div>
-      <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}</div>
+      <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}${e.latitude!=null&&e.longitude!=null?` · 📍 ${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}`:''}</div>
       <div style="text-align:right;margin-top:7px">
         <button class="bdanger" onclick="delEntry(${e.id})">Excluir</button>
       </div>
@@ -849,6 +890,7 @@ openDB().then(()=>{
   popularMunis();
   setOnline(navigator.onLine);
   atualizarBadge();
+  aquecerGPS();
   if(online){
     syncPendentes();
     carregarEstatisticas();
