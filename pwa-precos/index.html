@@ -347,6 +347,20 @@ const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localSto
   }catch(e){console.error('Link de configuração inválido',e);}
 })();
 
+// Configuração padrão embutida (codificada) — permite que o link público
+// funcione sem nenhuma configuração manual. Um link ?cfg= ou o campo em
+// Ajustes continuam tendo prioridade sobre este valor.
+const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwb2g2Rjd4N3NRd2k1X05KSGF1S3pvT3VsRkxlZExtZWZwSVJaeklmdFNjSmZGN1hNNjdRakZ4eG9OVExVNUtWR1YwZ2Y4MGV0fGVjb25vbWlhMi1jeWJlci9jb2xldGFkZWN1c3Rvcw==';
+(function(){
+  if(localStorage.getItem('gh_token')||CFG_EMBED.indexOf('__')===0) return;
+  try{
+    const [t,r]=atob(CFG_EMBED).split('|');
+    if(t) localStorage.setItem('gh_token',t.trim());
+    if(r) localStorage.setItem('gh_repo',r.trim());
+    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
+  }catch(e){console.error('Configuração embutida inválida',e);}
+})();
+
 function salvarCfg(){
   const t=document.getElementById('cfg-token').value.trim();
   const r=document.getElementById('cfg-repo').value.trim();
