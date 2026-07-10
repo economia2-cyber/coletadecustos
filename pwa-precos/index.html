@@ -233,12 +233,13 @@
   <div class="psub">Conexão com GitHub para sincronização</div>
 
   <div class="snote">
-    🔒 O token fica salvo <b>apenas neste dispositivo</b>. Use um token com permissão
-    <b>Contents → Read &amp; Write</b> somente no repositório da planilha.
+    🔒 O token fica salvo <b>apenas neste dispositivo</b> e nunca é exibido.
+    Normalmente você não precisa mexer aqui: use o <b>link de configuração</b>
+    fornecido pela Aprosoja/MS, que configura tudo automaticamente.
   </div>
 
   <div class="fg"><label>GitHub Token (Personal Access Token)</label>
-    <input type="text" id="cfg-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
+    <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
   <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
     <input type="text" id="cfg-repo" placeholder="meu-usuario/meu-repositorio"></div>
 
@@ -317,15 +318,33 @@ const dbPut = e => new Promise((r,j)=>{const q=db.transaction('entries','readwri
 const dbDel = id=> new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').delete(id);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo')||''});
+// O repositório já vem pré-configurado; o token NÃO fica no código (a página é
+// pública) — ele chega via link de configuração (#cfg=...) e fica só no aparelho.
+const REPO_DEFAULT='economia2-cyber/coletadecustos';
+const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo')||REPO_DEFAULT});
+
+// Link de configuração: index.html#cfg=BASE64(token|repo)
+// Salva no localStorage e limpa o endereço para o token não ficar visível/no histórico
+(function(){
+  if(!location.hash.startsWith('#cfg=')) return;
+  try{
+    const [t,r]=atob(decodeURIComponent(location.hash.slice(5))).split('|');
+    if(t) localStorage.setItem('gh_token',t.trim());
+    if(r) localStorage.setItem('gh_repo',r.trim());
+    history.replaceState(null,'',location.pathname+location.search);
+    setTimeout(()=>showToast('✅ Conexão configurada automaticamente!'),800);
+  }catch(e){console.error('cfg link inválido',e);}
+})();
 
 function salvarCfg(){
   const t=document.getElementById('cfg-token').value.trim();
   const r=document.getElementById('cfg-repo').value.trim();
-  if(!t||!r){showToast('Preencha token e repositório',1);return;}
-  localStorage.setItem('gh_token',t);
+  if(!r){showToast('Preencha o repositório',1);return;}
+  if(t) localStorage.setItem('gh_token',t);   // vazio = mantém o token já salvo
   localStorage.setItem('gh_repo',r);
+  if(!getCfg().token){showToast('Informe o token',1);return;}
   showToast('✅ Configurações salvas!');
+  carregarCfg();
 }
 
 function salvarMunis(){
@@ -339,7 +358,10 @@ function salvarMunis(){
 
 function carregarCfg(){
   const {token,repo}=getCfg();
-  document.getElementById('cfg-token').value=token;
+  // O token salvo nunca é exibido — o campo só mostra se está configurado
+  const tEl=document.getElementById('cfg-token');
+  tEl.value='';
+  tEl.placeholder=token?'✓ Token configurado — digite aqui só para trocar':'ghp_xxxxxxxxxxxxxxxxxxxx';
   document.getElementById('cfg-repo').value=repo;
   const m=localStorage.getItem('munis_custom');
   if(m) document.getElementById('cfg-munis').value=JSON.parse(m).join('\n');
