@@ -16,5 +16,14 @@
     "municipio": "Anaurilândia",
     "cultura": "Soja",
     "preco": 111
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Proprietário - Linneu",
+    "tipo_informante": "Proprietário",
+    "nome": "Linneu",
+    "municipio": "Rio Brilhante",
+    "cultura": "Soja",
+    "preco": 108.5
   }
 ]
