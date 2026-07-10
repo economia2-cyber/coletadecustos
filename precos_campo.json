@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "data": "2026-07-10",
+    "tecnico": "Produtor",
+    "tipo_informante": "Produtor",
+    "nome": "",
+    "municipio": "Água Clara",
+    "cultura": "Soja",
+    "preco": 110,
+    "data_negociacao": "2026-07-01",
+    "latitude": -20.462173,
+    "longitude": -54.581695,
+    "precisao_m": 22
+  }
+]
