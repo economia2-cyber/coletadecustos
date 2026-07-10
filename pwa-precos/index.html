@@ -61,6 +61,12 @@
     .bdanger{padding:5px 10px;background:transparent;color:var(--red);
       border:1px solid var(--red);border-radius:6px;font-size:.7rem;cursor:pointer}
 
+    /* ── Botões de cultura (Soja/Milho) ── */
+    .cult-row{display:flex;gap:8px}
+    .cbtn{flex:1;padding:11px;background:var(--ibg);border:1px solid var(--ibrd);
+      border-radius:8px;color:var(--light);font-size:.88rem;font-weight:600;cursor:pointer}
+    .cbtn.sel{background:var(--gold);color:#0e1a12;border-color:var(--gold);font-weight:700}
+
     /* ── Errors ── */
     .err{background:rgba(224,120,120,.1);border:1px solid rgba(224,120,120,.4);
       border-radius:8px;padding:9px 11px;color:var(--red);font-size:.78rem;margin-bottom:10px}
@@ -170,6 +176,11 @@
     <input type="text" id="tecnico" placeholder="Seu nome completo"></div>
   <div class="fg"><label>Município *</label>
     <select id="municipio"><option value="">Selecione...</option></select></div>
+  <div class="fg"><label>Cultura *</label>
+    <div class="cult-row">
+      <button type="button" class="cbtn" id="cbtn-soja"  onclick="setCultura('Soja')">Soja</button>
+      <button type="button" class="cbtn" id="cbtn-milho" onclick="setCultura('Milho')">Milho</button>
+    </div></div>
   <div class="fg"><label>Preço de venda (R$/sc) *</label>
     <input type="number" id="preco" placeholder="0.00" min="0" step="0.5" inputmode="decimal"></div>
 
@@ -347,6 +358,13 @@ function popularMunis(){
 const n=(id,d=0)=>{const v=parseFloat(document.getElementById(id).value);return isNaN(v)?d:v;};
 const brl=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
+let cultura='';
+function setCultura(c){
+  cultura=c;
+  document.getElementById('cbtn-soja').classList.toggle('sel',c==='Soja');
+  document.getElementById('cbtn-milho').classList.toggle('sel',c==='Milho');
+}
+
 function salvar(){
   const tecnico=document.getElementById('tecnico').value.trim();
   const mun=document.getElementById('municipio').value;
@@ -355,6 +373,7 @@ function salvar(){
   const erros=[];
   if(!tecnico) erros.push('Técnico é obrigatório.');
   if(!mun)     erros.push('Município é obrigatório.');
+  if(!cultura) erros.push('Selecione a cultura (Soja ou Milho).');
   if(preco<=0) erros.push('Preço de venda deve ser maior que zero.');
   if(erros.length){
     document.getElementById('errs').innerHTML=erros.map(e=>`<div class="err">⚠️ ${e}</div>`).join('');
@@ -363,13 +382,13 @@ function salvar(){
 
   const entry={
     data:new Date().toISOString().split('T')[0],
-    tecnico, municipio:mun, preco,
+    tecnico, municipio:mun, cultura, preco,
     status:'pending', created_at:new Date().toISOString(),
   };
 
   dbAdd(entry).then(async ()=>{
     atualizarBadge();
-    mostrarResultado(tecnico,mun,preco);
+    mostrarResultado(tecnico,mun,cultura,preco);
     showToast(online?'✅ Salvo! Sincronizando...':'✅ Salvo offline. Sincronizará ao conectar.');
     document.getElementById('comparativo').innerHTML =
       '<div class="result"><div class="rtitle">📊 Calculando preço médio da região...</div></div>';
@@ -377,9 +396,9 @@ function salvar(){
     if(online){
       await syncPendentes();
       const pack = await carregarEstatisticas();
-      mostrarComparativo(mun, preco, pack, false);
+      mostrarComparativo(mun, cultura, preco, pack, false);
     }else{
-      mostrarComparativo(mun, preco, getStatsCache(), true);
+      mostrarComparativo(mun, cultura, preco, getStatsCache(), true);
     }
   });
 }
@@ -387,31 +406,34 @@ function salvar(){
 function limpar(){
   document.getElementById('tecnico').value='';
   document.getElementById('municipio').selectedIndex=0;
+  setCultura('');
   document.getElementById('preco').value='';
   document.getElementById('errs').innerHTML='';
   document.getElementById('result').innerHTML='';
 }
 
-function mostrarResultado(tec,mun,preco){
+function mostrarResultado(tec,mun,cult,preco){
   document.getElementById('result').innerHTML=`
   <div class="result">
-    <div class="rtitle">Resultado — ${mun}</div>
+    <div class="rtitle">Resultado — ${mun} · ${cult}</div>
     <div class="kgrid">
       <div class="kcard"><div class="klbl">Técnico</div><div class="kval l">${tec}</div></div>
       <div class="kcard"><div class="klbl">Município</div><div class="kval l">${mun}</div></div>
-      <div class="kcard" style="grid-column:1 / -1"><div class="klbl">Preço de Venda</div><div class="kval">${brl(preco)} <span style="font-size:.65rem;color:var(--muted)">/sc</span></div></div>
+      <div class="kcard"><div class="klbl">Cultura</div><div class="kval g">${cult}</div></div>
+      <div class="kcard"><div class="klbl">Preço de Venda</div><div class="kval">${brl(preco)} <span style="font-size:.65rem;color:var(--muted)">/sc</span></div></div>
     </div>
   </div>`;
 }
 
-function mostrarComparativo(mun,preco,pack,offlineCache){
+function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   const el=document.getElementById('comparativo');
-  const s=pack && pack.stats && pack.stats[mun];
+  const s=pack && pack.stats && pack.stats[mun] && pack.stats[mun][cult];
   if(!s){
     el.innerHTML=`
     <div class="result">
       <div class="rtitle">📊 Preço médio da região</div>
-      <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${mun}</b> para comparar.
+      <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${cult}</b> em
+      <b style="color:var(--light)">${mun}</b> para comparar.
       Continue enviando — quanto mais produtores participarem, mais útil essa informação fica para todos.</div>
     </div>`;
     el.scrollIntoView({behavior:'smooth',block:'end'});
@@ -420,14 +442,14 @@ function mostrarComparativo(mun,preco,pack,offlineCache){
   const diff=((preco-s.media)/s.media)*100;
   const sinal=diff>=0?'+':'';
   const cor=diff>=0?'g':'r';
-  const serie=(pack&&pack.entries)?serieMunicipio(pack.entries,mun):[];
+  const serie=(pack&&pack.entries)?serieMunicipio(pack.entries,mun,cult):[];
   const grafico=serie.length>=2
     ? `<div style="margin-top:12px">${svgEvolucao(serie,s.media)}
        <div class="klbl" style="margin-top:5px;text-align:center">EVOLUÇÃO DO PREÇO — ÚLTIMO MÊS · tracejado = média da região</div></div>`
     : `<div class="edet" style="margin-top:10px;color:var(--label)">📈 O gráfico de evolução aparecerá quando houver coletas em mais de um dia.</div>`;
   el.innerHTML=`
   <div class="result">
-    <div class="rtitle">📊 Preço médio em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
+    <div class="rtitle">📊 Preço médio de ${cult} em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
     <div class="kgrid">
       <div class="kcard"><div class="klbl">Média da Região</div><div class="kval l">${brl(s.media)}</div></div>
       <div class="kcard"><div class="klbl">Você vs. Média</div><div class="kval ${cor}">${sinal}${diff.toFixed(1)}%</div></div>
@@ -494,20 +516,28 @@ async function syncAgora(){
 }
 
 // ─── PREÇOS DA REGIÃO (valor devolvido ao produtor em troca do dado) ──────────
+// Estatísticas agrupadas por município E cultura — soja e milho têm preços
+// muito diferentes, então as médias nunca se misturam. Registros antigos sem
+// cultura ficam no grupo "Não informada".
 function calcularStats(registros){
   const porMun={};
   registros.forEach(r=>{
     const m=r.municipio, p=parseFloat(r.preco);
+    const c=(r.cultura||'').trim()||'Não informada';
     if(!m||!p||isNaN(p)||p<=0) return;
-    if(!porMun[m]) porMun[m]={soma:0,n:0,min:p,max:p};
-    porMun[m].soma+=p; porMun[m].n+=1;
-    porMun[m].min=Math.min(porMun[m].min,p);
-    porMun[m].max=Math.max(porMun[m].max,p);
+    const grp=porMun[m]=porMun[m]||{};
+    if(!grp[c]) grp[c]={soma:0,n:0,min:p,max:p};
+    grp[c].soma+=p; grp[c].n+=1;
+    grp[c].min=Math.min(grp[c].min,p);
+    grp[c].max=Math.max(grp[c].max,p);
   });
   const out={};
   Object.keys(porMun).forEach(m=>{
-    const d=porMun[m];
-    out[m]={media:d.soma/d.n, min:d.min, max:d.max, n:d.n};
+    out[m]={};
+    Object.keys(porMun[m]).forEach(c=>{
+      const d=porMun[m][c];
+      out[m][c]={media:d.soma/d.n, min:d.min, max:d.max, n:d.n};
+    });
   });
   return out;
 }
@@ -522,10 +552,10 @@ async function carregarEstatisticas(){
     ]);
     const todos=[...(oficial.dados||[]),...(campo.dados||[])];
     const stats=calcularStats(todos);
-    const entries=todos.map(e=>({m:e.municipio,d:e.data,p:parseFloat(e.preco)}))
+    const entries=todos.map(e=>({m:e.municipio,d:e.data,p:parseFloat(e.preco),c:(e.cultura||'').trim()}))
                        .filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0);
     const pack={stats,entries,ts:new Date().toISOString()};
-    localStorage.setItem('precos_stats_cache',JSON.stringify(pack));
+    localStorage.setItem('precos_stats_cache_v2',JSON.stringify(pack));
     return pack;
   }catch(err){
     console.error(err);
@@ -533,12 +563,12 @@ async function carregarEstatisticas(){
   }
 }
 
-// Série diária (média por dia) dos últimos 30 dias para um município
-function serieMunicipio(entries,mun){
+// Série diária (média por dia) dos últimos 30 dias para um município e cultura
+function serieMunicipio(entries,mun,cult){
   const lim=new Date(Date.now()-30*864e5).toISOString().split('T')[0];
   const porDia={};
   entries.forEach(e=>{
-    if(e.m!==mun||!e.d||e.d<lim) return;
+    if(e.m!==mun||e.c!==cult||!e.d||e.d<lim) return;
     (porDia[e.d]=porDia[e.d]||[]).push(e.p);
   });
   return Object.keys(porDia).sort()
@@ -584,7 +614,7 @@ function svgEvolucao(serie,media){
 }
 
 function getStatsCache(){
-  const raw=localStorage.getItem('precos_stats_cache');
+  const raw=localStorage.getItem('precos_stats_cache_v2');
   if(!raw) return null;
   try{ return JSON.parse(raw); }catch(e){ return null; }
 }
@@ -637,16 +667,21 @@ async function renderStats(){
 }
 
 function renderStatsList(stats){
+  const ordemCult=['Soja','Milho','Não informada'];
+  const rank=c=>{const i=ordemCult.indexOf(c);return i<0?99:i;};
   const muns=Object.keys(stats).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   return muns.map(m=>{
-    const s=stats[m];
-    return `<div class="ecard">
-      <div class="ehead">
-        <span class="emun">${m}</span>
-        <span class="badge bsync2">${s.n} produtor(es)</span>
-      </div>
-      <div class="edet">Média: <b style="color:var(--gold)">${brl(s.media)}</b>/sc · Faixa: ${brl(s.min)} – ${brl(s.max)}</div>
-    </div>`;
+    const cults=Object.keys(stats[m]).sort((a,b)=>rank(a)-rank(b));
+    return cults.map(c=>{
+      const s=stats[m][c];
+      return `<div class="ecard">
+        <div class="ehead">
+          <span class="emun">${m} · <span style="color:var(--gn)">${c}</span></span>
+          <span class="badge bsync2">${s.n} produtor(es)</span>
+        </div>
+        <div class="edet">Média: <b style="color:var(--gold)">${brl(s.media)}</b>/sc · Faixa: ${brl(s.min)} – ${brl(s.max)}</div>
+      </div>`;
+    }).join('');
   }).join('');
 }
 
@@ -669,7 +704,7 @@ async function renderPending(){
         <span class="emun">${e.municipio}</span>
         <span class="badge ${e.status==='pending'?'bpend':'bsync2'}">${e.status==='pending'?'⏳ Pendente':'✅ Sincronizado'}</span>
       </div>
-      <div class="edet">${e.tecnico||''} · ${brl(e.preco)}/sc</div>
+      <div class="edet">${e.tecnico||''} · ${e.cultura?e.cultura+' · ':''}${brl(e.preco)}/sc</div>
       <div class="edet" style="margin-top:3px;color:var(--label)">${new Date(e.created_at).toLocaleString('pt-BR')}</div>
       <div style="text-align:right;margin-top:7px">
         <button class="bdanger" onclick="delEntry(${e.id})">🗑️ Excluir</button>
