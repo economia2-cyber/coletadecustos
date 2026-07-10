@@ -140,6 +140,10 @@
       border-top-color:var(--gold);border-radius:50%;animation:rot .7s linear infinite;vertical-align:middle}
     @keyframes rot{to{transform:rotate(360deg)}}
 
+    /* ── Nota de rodapé (uso dos dados) ── */
+    .footnote{margin-top:16px;padding:10px 12px;border-top:1px solid var(--border);
+      color:var(--label);font-size:.68rem;line-height:1.5;text-align:center}
+
     hr{border:none;border-top:1px solid var(--border);margin:14px 0}
     ::-webkit-scrollbar{width:3px}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -204,6 +208,9 @@
   <button class="bsecondary" onclick="limpar()">Limpar formulário</button>
   <div id="result"></div>
   <div id="comparativo"></div>
+  <div class="footnote">Os dados informados são utilizados <b>apenas para consulta</b>,
+    com o objetivo de apresentar resultados de preços mais precisos ao produtor
+    que utiliza o aplicativo. Nenhuma informação é divulgada de forma individual.</div>
 </div>
 
 <!-- ════════════════ PENDENTES ════════════════ -->
@@ -237,6 +244,9 @@
   <div class="empty" id="stats-empty" style="display:none">
     Nenhum dado ainda.<br>Seja o primeiro a contribuir!
   </div>
+  <div class="footnote">Os dados informados são utilizados <b>apenas para consulta</b>,
+    com o objetivo de apresentar resultados de preços mais precisos ao produtor
+    que utiliza o aplicativo. Nenhuma informação é divulgada de forma individual.</div>
 </div>
 
 <!-- ════════════════ CONFIGURAÇÕES ════════════════ -->
