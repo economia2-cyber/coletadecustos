@@ -254,10 +254,15 @@
 <!-- ════════════════ PREÇOS POR MUNICÍPIO ════════════════ -->
 <div id="page-stats" class="page">
   <div class="ptitle">PREÇOS POR MUNICÍPIO</div>
-  <div class="psub">Lançamentos por data, informados pelos produtores que já contribuíram — obrigado por participar!</div>
+  <div class="psub">Evolução do preço médio por município — escolha a data para ver a cotação do dia</div>
 
   <div class="sbar" id="stats-sbar">
     <span id="stats-sbar-txt">Carregando...</span>
+  </div>
+
+  <div class="fg" id="stats-datebox" style="display:none;margin-top:10px">
+    <label>Cotação do dia</label>
+    <select id="stats-date" onchange="statsDateChanged()"></select>
   </div>
 
   <div id="stats-list"></div>
@@ -794,8 +799,7 @@ async function renderStats(){
   const tx=document.getElementById('stats-sbar-txt');
 
   if(cacheOld && (cacheOld.entries||[]).length){
-    empEl.style.display='none';
-    listEl.innerHTML=renderStatsList(cacheOld);
+    renderStatsUI(cacheOld);
   }
 
   const {token,repo}=getCfg();
@@ -827,14 +831,36 @@ async function renderStats(){
     return;
   }
   tx.textContent=`Atualizado agora · ${nMun} município(s)`;
-  empEl.style.display='none';
-  listEl.innerHTML=renderStatsList(pack);
+  renderStatsUI(pack);
+}
+
+// Preenche o seletor de data (mais recente primeiro, preservando a escolha
+// do usuário quando possível) e desenha a lista para a data selecionada
+let statsPackAtual=null;
+function renderStatsUI(pack){
+  statsPackAtual=pack;
+  const datas=[...new Set((pack.entries||[])
+    .filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0).map(e=>e.d))].sort().reverse();
+  const box=document.getElementById('stats-datebox');
+  const sel=document.getElementById('stats-date');
+  if(!datas.length){box.style.display='none';mostrarStatsVazio();return;}
+  const atual=(sel.value&&datas.includes(sel.value))?sel.value:datas[0];
+  sel.innerHTML=datas.map(d=>`<option value="${d}"${d===atual?' selected':''}>${fmtDataBR(d)}</option>`).join('');
+  box.style.display='block';
+  document.getElementById('stats-empty').style.display='none';
+  document.getElementById('stats-list').innerHTML=renderStatsList(pack,atual);
+}
+
+function statsDateChanged(){
+  if(!statsPackAtual) return;
+  document.getElementById('stats-list').innerHTML=
+    renderStatsList(statsPackAtual,document.getElementById('stats-date').value);
 }
 
 // Lista por município: para cada cultura, gráfico de linha com a evolução e
-// a média de preço por data (mais recente primeiro) — a data usada é a da
+// a média do dia selecionado no seletor de data — a data usada é a da
 // negociação, quando informada
-function renderStatsList(pack){
+function renderStatsList(pack,selDate){
   const ordemCult=['Soja','Milho','Não informada'];
   const rank=c=>{const i=ordemCult.indexOf(c);return i<0?99:i;};
   // município → cultura → data → [preços]
@@ -851,21 +877,24 @@ function renderStatsList(pack){
   return muns.map(m=>{
     const cults=Object.keys(tree[m]).sort((a,b)=>rank(a)-rank(b));
     const blocos=cults.map(c=>{
-      const datas=Object.keys(tree[m][c]).sort().reverse();
-      // série ascendente de médias diárias para o gráfico
-      const serie=datas.slice().reverse().map(d=>({d,p:media(tree[m][c][d])}));
-      const todas=[].concat(...datas.map(d=>tree[m][c][d]));
+      const dias=tree[m][c];
+      const datas=Object.keys(dias).sort();
+      const serie=datas.map(d=>({d,p:media(dias[d])}));
+      const todas=[].concat(...datas.map(d=>dias[d]));
       const graf=serie.length>=2
         ? `<div style="margin:8px 0 4px">${svgEvolucao(serie,media(todas))}</div>`
         : '';
-      const linhas=datas.map(d=>`
+      const valorDia=dias[selDate]
+        ? `<b style="color:var(--gold)">${brl(media(dias[selDate]))}<span style="color:var(--muted);font-weight:400">/sc</span></b>`
+        : `<span style="color:var(--label)">sem cotação nesta data</span>`;
+      const linhaDia=`
         <div class="edet" style="display:flex;justify-content:space-between;margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
-          <span style="color:var(--light)">${fmtDataBR(d)}</span>
-          <b style="color:var(--gold)">${brl(media(tree[m][c][d]))}<span style="color:var(--muted);font-weight:400">/sc</span></b>
-        </div>`).join('');
+          <span style="color:var(--light)">${fmtDataBR(selDate)}</span>
+          ${valorDia}
+        </div>`;
       return `<div style="margin-top:10px">
-        <div class="klbl" style="font-size:.62rem;color:var(--gn)">${c} — MÉDIA POR DATA</div>
-        ${graf}${linhas}
+        <div class="klbl" style="font-size:.62rem;color:var(--gn)">${c}</div>
+        ${graf}${linhaDia}
       </div>`;
     }).join('');
     return `<div class="ecard">
