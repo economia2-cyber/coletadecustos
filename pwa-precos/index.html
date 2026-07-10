@@ -943,12 +943,19 @@ function showPage(p){
 
 // ─── COMPARTILHAR ─────────────────────────────────────────────────────────────
 const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-precos/';
+const SHARE_TEXT=`📱 Descubra a média de preço da sua região!
+Tenha um acompanhamento mais preciso dos preços de venda da soja e do milho. Basta registrar os valores praticados no mercado e o aplicativo organiza o histórico, acompanha as variações e gera indicadores que te ajudam na tomada de decisão.
+🎯 Quanto mais precisos forem os preços informados, mais confiáveis serão as análises e os direcionamentos para o seu planejamento.
+Acesse agora e comece a registrar seus preços:
+${APP_LINK}
+
+Aplicativo criado e publicado pela Aprosoja/MS.`;
 async function compartilharApp(){
   if(navigator.share){
     try{
-      await navigator.share({title:'Coleta de Preços – Aprosoja/MS',
-        text:'Participe da coleta de preços da Aprosoja/MS e acompanhe a média da sua região:',
-        url:APP_LINK});
+      // O link vai dentro do texto — passar text e url juntos duplica o link
+      // no WhatsApp; só o texto mantém a mensagem exatamente como definida
+      await navigator.share({text:SHARE_TEXT});
       return;
     }catch(e){ if(e&&e.name==='AbortError') return; }
   }
