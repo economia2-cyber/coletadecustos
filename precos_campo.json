@@ -4,5 +4,11 @@
     "tecnico": "Teste",
     "municipio": "Anaurilândia",
     "preco": 111
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Teste",
+    "municipio": "Água Clara",
+    "preco": 110
   }
 ]
