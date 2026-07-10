@@ -140,6 +140,11 @@
       border-top-color:var(--gold);border-radius:50%;animation:rot .7s linear infinite;vertical-align:middle}
     @keyframes rot{to{transform:rotate(360deg)}}
 
+    /* ── Compartilhar (QR code) ── */
+    .qrbox{background:#fff;border-radius:14px;padding:12px;width:230px;max-width:70vw;
+      margin:16px auto 6px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+    .qrbox img{display:block;width:100%;height:auto}
+
     /* ── Nota de rodapé (uso dos dados) ── */
     .footnote{margin-top:16px;padding:10px 12px;border-top:1px solid var(--border);
       color:var(--label);font-size:.68rem;line-height:1.5;text-align:center}
@@ -249,6 +254,21 @@
     que utiliza o aplicativo. Nenhuma informação é divulgada de forma individual.</div>
 </div>
 
+<!-- ════════════════ COMPARTILHAR ════════════════ -->
+<div id="page-share" class="page">
+  <div class="ptitle">COMPARTILHAR O APP</div>
+  <div class="psub">Convide outros produtores — quanto mais gente participa, mais precisa fica a média da sua região</div>
+
+  <div class="qrbox"><img src="./qr-app.png" alt="QR code para abrir o aplicativo"></div>
+  <p style="text-align:center;color:var(--muted);font-size:.72rem;margin:4px 0 14px">
+    Aponte a câmera do celular para o código acima
+  </p>
+
+  <div class="sbar" style="text-align:center;word-break:break-all">https://economia2-cyber.github.io/coletadecustos/pwa-precos/</div>
+  <button class="bprimary" onclick="compartilharApp()">Compartilhar link</button>
+  <button class="bsecondary" onclick="copiarLink()">Copiar link</button>
+</div>
+
 <!-- ════════════════ CONFIGURAÇÕES ════════════════ -->
 <div id="page-settings" class="page">
   <div class="ptitle">AJUSTES</div>
@@ -288,7 +308,7 @@
     <span id="bcnt" class="bcnt">0</span>
   </button>
   <button class="nbtn"        id="nav-stats"    onclick="showPage('stats')">Município</button>
-  <button class="nbtn"        id="nav-settings" onclick="showPage('settings')">Ajustes</button>
+  <button class="nbtn"        id="nav-share"    onclick="showPage('share')">Compartilhar</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -897,15 +917,49 @@ async function atualizarSbar(){
 }
 
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+// "settings" não tem botão na barra — o acesso é escondido (7 toques no logo)
 function showPage(p){
-  ['form','pending','stats','settings'].forEach(x=>{
+  ['form','pending','stats','share','settings'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
-    document.getElementById('nav-'+x).classList.toggle('active',x===p);
+    const nb=document.getElementById('nav-'+x);
+    if(nb) nb.classList.toggle('active',x===p);
   });
   if(p==='pending'){renderPending();atualizarSbar();}
   if(p==='stats')   renderStats();
   if(p==='settings') carregarCfg();
 }
+
+// ─── COMPARTILHAR ─────────────────────────────────────────────────────────────
+const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-precos/';
+async function compartilharApp(){
+  if(navigator.share){
+    try{
+      await navigator.share({title:'Coleta de Preços – Aprosoja/MS',
+        text:'Participe da coleta de preços da Aprosoja/MS e acompanhe a média da sua região:',
+        url:APP_LINK});
+      return;
+    }catch(e){ if(e&&e.name==='AbortError') return; }
+  }
+  copiarLink();
+}
+function copiarLink(){
+  const fallback=()=>{
+    const ta=document.createElement('textarea');
+    ta.value=APP_LINK; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+    showToast('Link copiado.');
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(APP_LINK).then(()=>showToast('Link copiado.')).catch(fallback);
+  else fallback();
+}
+
+// ─── AJUSTES ESCONDIDOS (7 toques no logo do cabeçalho) ───────────────────────
+let _hTap=0,_hTapT;
+document.querySelector('.header').addEventListener('click',()=>{
+  clearTimeout(_hTapT); _hTapT=setTimeout(()=>_hTap=0,2000);
+  if(++_hTap>=7){_hTap=0; showPage('settings'); showToast('Ajustes abertos.');}
+});
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 let _tt;
