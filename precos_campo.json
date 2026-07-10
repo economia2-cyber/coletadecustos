@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test",
+    "municipio": "Água Clara",
+    "preco": 111.5
+  }
+]
