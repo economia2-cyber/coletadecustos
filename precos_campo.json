@@ -4,5 +4,53 @@
     "tecnico": "Test",
     "municipio": "Água Clara",
     "preco": 111.5
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test",
+    "municipio": "Anaurilândia",
+    "preco": 111.5
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 112
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 119
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 119
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 120
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 125
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 150
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Test 3",
+    "municipio": "Anaurilândia",
+    "preco": 135
   }
 ]
