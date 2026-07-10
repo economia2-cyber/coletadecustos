@@ -25,5 +25,14 @@
     "municipio": "Água Clara",
     "cultura": "Soja",
     "preco": 110
+  },
+  {
+    "data": "2026-07-10",
+    "tecnico": "Produtor",
+    "tipo_informante": "Produtor",
+    "nome": "",
+    "municipio": "Anastácio",
+    "cultura": "Soja",
+    "preco": 110
   }
 ]
