@@ -784,41 +784,46 @@ async function renderStats(){
   listEl.innerHTML=renderStatsList(pack);
 }
 
-// Lista por município, com os lançamentos separados por data (mais recente
-// primeiro) e por cultura — a data usada é a da negociação, quando informada
+// Lista por município: para cada cultura, gráfico de linha com a evolução e
+// a média de preço por data (mais recente primeiro) — a data usada é a da
+// negociação, quando informada
 function renderStatsList(pack){
   const ordemCult=['Soja','Milho','Não informada'];
   const rank=c=>{const i=ordemCult.indexOf(c);return i<0?99:i;};
+  // município → cultura → data → [preços]
   const tree={};
   (pack.entries||[]).forEach(e=>{
     if(!e.m||!e.d||isNaN(e.p)||e.p<=0) return;
     const c=(e.c||'').trim()||'Não informada';
-    const dias=tree[e.m]=tree[e.m]||{};
-    const grp=dias[e.d]=dias[e.d]||{};
-    (grp[c]=grp[c]||[]).push(e.p);
+    const cults=tree[e.m]=tree[e.m]||{};
+    const dias=cults[c]=cults[c]||{};
+    (dias[e.d]=dias[e.d]||[]).push(e.p);
   });
+  const media=ps=>ps.reduce((a,b)=>a+b,0)/ps.length;
   const muns=Object.keys(tree).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   return muns.map(m=>{
-    const datas=Object.keys(tree[m]).sort().reverse();
-    let total=0;
-    const linhas=datas.map(d=>{
-      const cults=Object.keys(tree[m][d]).sort((a,b)=>rank(a)-rank(b));
-      return cults.map(c=>{
-        const ps=tree[m][d][c];
-        total+=ps.length;
-        const media=ps.reduce((a,b)=>a+b,0)/ps.length;
-        const faixa=ps.length>1?` · faixa ${brl(Math.min(...ps))} – ${brl(Math.max(...ps))}`:'';
-        return `<div class="edet" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
-          <b style="color:var(--light)">${fmtDataBR(d)}</b> · <span style="color:var(--gn)">${c}</span> —
-          <b style="color:var(--gold)">${brl(media)}</b>/sc${faixa} · ${ps.length} lançamento(s)</div>`;
-      }).join('');
+    const cults=Object.keys(tree[m]).sort((a,b)=>rank(a)-rank(b));
+    const blocos=cults.map(c=>{
+      const datas=Object.keys(tree[m][c]).sort().reverse();
+      // série ascendente de médias diárias para o gráfico
+      const serie=datas.slice().reverse().map(d=>({d,p:media(tree[m][c][d])}));
+      const todas=[].concat(...datas.map(d=>tree[m][c][d]));
+      const graf=serie.length>=2
+        ? `<div style="margin:8px 0 4px">${svgEvolucao(serie,media(todas))}</div>`
+        : '';
+      const linhas=datas.map(d=>`
+        <div class="edet" style="display:flex;justify-content:space-between;margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
+          <span style="color:var(--light)">${fmtDataBR(d)}</span>
+          <b style="color:var(--gold)">${brl(media(tree[m][c][d]))}<span style="color:var(--muted);font-weight:400">/sc</span></b>
+        </div>`).join('');
+      return `<div style="margin-top:10px">
+        <div class="klbl" style="font-size:.62rem;color:var(--gn)">${c} — MÉDIA POR DATA</div>
+        ${graf}${linhas}
+      </div>`;
     }).join('');
     return `<div class="ecard">
-      <div class="ehead">
-        <span class="emun">${m}</span>
-        <span class="badge bsync2">${total} lançamento(s)</span>
-      </div>
-      ${linhas}
+      <div class="ehead"><span class="emun">${m}</span></div>
+      ${blocos}
     </div>`;
   }).join('');
 }
