@@ -254,10 +254,15 @@
 <!-- ════════════════ PREÇOS POR MUNICÍPIO ════════════════ -->
 <div id="page-stats" class="page">
   <div class="ptitle">PREÇOS POR MUNICÍPIO</div>
-  <div class="psub">Evolução do preço médio por município — escolha a data para ver a cotação do dia</div>
+  <div class="psub">Escolha o município e a data para ver a cotação do dia e a evolução do preço médio</div>
 
   <div class="sbar" id="stats-sbar">
     <span id="stats-sbar-txt">Carregando...</span>
+  </div>
+
+  <div class="fg" id="stats-munbox" style="display:none;margin-top:10px">
+    <label>Município</label>
+    <select id="stats-mun" onchange="statsMunChanged()"></select>
   </div>
 
   <div class="fg" id="stats-datebox" style="display:none;margin-top:10px">
@@ -834,33 +839,61 @@ async function renderStats(){
   renderStatsUI(pack);
 }
 
-// Preenche o seletor de data (mais recente primeiro, preservando a escolha
-// do usuário quando possível) e desenha a lista para a data selecionada
+// Preenche o seletor de município (ordem alfabética, lembrando a última
+// escolha do usuário) e, a partir dele, o de datas e a lista
 let statsPackAtual=null;
 function renderStatsUI(pack){
   statsPackAtual=pack;
-  const datas=[...new Set((pack.entries||[])
-    .filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0).map(e=>e.d))].sort().reverse();
+  const ents=(pack.entries||[]).filter(e=>e.m&&e.d&&!isNaN(e.p)&&e.p>0);
+  const munbox=document.getElementById('stats-munbox');
+  const selM=document.getElementById('stats-mun');
+  const muns=[...new Set(ents.map(e=>e.m))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  if(!muns.length){
+    munbox.style.display='none';
+    document.getElementById('stats-datebox').style.display='none';
+    mostrarStatsVazio();return;
+  }
+  const salvo=localStorage.getItem('stats_mun_sel');
+  const munAtual=(selM.value&&muns.includes(selM.value))?selM.value
+    :(muns.includes(salvo)?salvo:muns[0]);
+  selM.innerHTML=muns.map(m=>`<option value="${m}"${m===munAtual?' selected':''}>${m}</option>`).join('');
+  munbox.style.display='block';
+  preencherDatasStats(munAtual);
+}
+
+// Datas com cotação no município escolhido (mais recente primeiro,
+// preservando a escolha do usuário quando possível)
+function preencherDatasStats(mun){
   const box=document.getElementById('stats-datebox');
   const sel=document.getElementById('stats-date');
+  const datas=[...new Set((statsPackAtual.entries||[])
+    .filter(e=>e.m===mun&&e.d&&!isNaN(e.p)&&e.p>0).map(e=>e.d))].sort().reverse();
   if(!datas.length){box.style.display='none';mostrarStatsVazio();return;}
   const atual=(sel.value&&datas.includes(sel.value))?sel.value:datas[0];
   sel.innerHTML=datas.map(d=>`<option value="${d}"${d===atual?' selected':''}>${fmtDataBR(d)}</option>`).join('');
   box.style.display='block';
   document.getElementById('stats-empty').style.display='none';
-  document.getElementById('stats-list').innerHTML=renderStatsList(pack,atual);
+  document.getElementById('stats-list').innerHTML=renderStatsList(statsPackAtual,atual,mun);
+}
+
+function statsMunChanged(){
+  if(!statsPackAtual) return;
+  const m=document.getElementById('stats-mun').value;
+  localStorage.setItem('stats_mun_sel',m);
+  preencherDatasStats(m);
 }
 
 function statsDateChanged(){
   if(!statsPackAtual) return;
   document.getElementById('stats-list').innerHTML=
-    renderStatsList(statsPackAtual,document.getElementById('stats-date').value);
+    renderStatsList(statsPackAtual,document.getElementById('stats-date').value,
+      document.getElementById('stats-mun').value);
 }
 
-// Lista por município: para cada cultura, gráfico de linha com a evolução e
-// a média do dia selecionado no seletor de data — a data usada é a da
-// negociação, quando informada
-function renderStatsList(pack,selDate){
+// Card do município selecionado: para cada cultura, gráfico de linha com a
+// evolução e a média do dia selecionado no seletor de data — a data usada é
+// a da negociação, quando informada
+function renderStatsList(pack,selDate,selMun){
   const ordemCult=['Soja','Milho','Não informada'];
   const rank=c=>{const i=ordemCult.indexOf(c);return i<0?99:i;};
   // município → cultura → data → [preços]
@@ -873,7 +906,7 @@ function renderStatsList(pack,selDate){
     (dias[e.d]=dias[e.d]||[]).push(e.p);
   });
   const media=ps=>ps.reduce((a,b)=>a+b,0)/ps.length;
-  const muns=Object.keys(tree).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const muns=Object.keys(tree).filter(m=>m===selMun);
   return muns.map(m=>{
     const cults=Object.keys(tree[m]).sort((a,b)=>rank(a)-rank(b));
     const blocos=cults.map(c=>{
