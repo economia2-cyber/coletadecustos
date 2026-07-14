@@ -1,4 +1,4 @@
-const CACHE = 'aprosoja-precos-v24';
+const CACHE = 'aprosoja-precos-v25';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './qr-app.png'];
 
 self.addEventListener('install', e => {
