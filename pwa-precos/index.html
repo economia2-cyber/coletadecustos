@@ -103,6 +103,19 @@
     .kval.r{color:var(--red)}
     .ksub{font-size:.62rem;color:var(--muted);margin-top:3px}
 
+    /* ── Comparação regional ── */
+    .bregiao{width:100%;padding:11px;background:transparent;color:var(--gold);
+      border:1px solid var(--gold);border-radius:10px;font-size:.82rem;
+      font-weight:600;cursor:pointer;margin-top:8px}
+    .rrow{display:flex;justify-content:space-between;align-items:center;
+      padding:8px 2px;border-bottom:1px solid var(--border);font-size:.82rem;
+      color:var(--light)}
+    .rrow:last-of-type{border-bottom:none}
+    .rrow .rval{font-weight:700;color:var(--gold)}
+    .rrow .rn{font-size:.62rem;color:var(--muted);font-weight:400;margin-left:4px}
+    .rrow.me{background:rgba(200,164,21,.08);border:1px solid rgba(200,164,21,.35);
+      border-radius:8px;padding:8px 8px;margin:2px 0}
+
     /* ── Sync bar ── */
     .sbar{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
       padding:9px 13px;font-size:.77rem;color:var(--muted);margin-bottom:14px}
@@ -361,6 +374,35 @@ const MUNIS_DEFAULT = [
 const CAMINHO_DADOS = 'precos_campo.json';
 const CAMINHO_DADOS_OFICIAIS = 'precos_dados.json';
 
+// ─── REGIÕES DO ESTADO (planilha "3 regiões.xlsx") ────────────────────────────
+// Municípios fora das três listas (ex.: Água Clara, Figueirão, Inocência,
+// Ladário) não têm região definida — para eles o botão de comparação não aparece.
+const REGIOES = {
+  'Sul': [
+    'Amambai','Anaurilândia','Angélica','Antônio João','Aral Moreira',
+    'Bataguassu','Batayporã','Bela Vista','Bodoquena','Bonito','Caarapó',
+    'Caracol','Coronel Sapucaia','Corumbá','Deodápolis','Douradina','Dourados',
+    'Eldorado','Fátima do Sul','Glória de Dourados','Guia Lopes da Laguna',
+    'Iguatemi','Itaporã','Itaquiraí','Ivinhema','Japorã','Jardim','Jateí',
+    'Juti','Laguna Carapã','Maracaju','Miranda','Mundo Novo','Naviraí',
+    'Nioaque','Nova Andradina','Novo Horizonte do Sul','Paranhos','Ponta Porã',
+    'Porto Murtinho','Sete Quedas','Tacuru','Taquarussu','Vicentina',
+  ],
+  'Centro': [
+    'Anastácio','Aquidauana','Bandeirantes','Brasilândia','Campo Grande',
+    'Corguinho','Dois Irmãos do Buriti','Jaraguari','Nova Alvorada do Sul',
+    'Ribas do Rio Pardo','Rio Brilhante','Rio Negro','Rochedo',
+    'Santa Rita do Pardo','Sidrolândia','Terenos',
+  ],
+  'Norte': [
+    'Alcinópolis','Aparecida do Taboado','Camapuã','Cassilândia',
+    'Chapadão do Sul','Costa Rica','Coxim','Paraíso das Águas','Paranaíba',
+    'Pedro Gomes','Rio Verde de Mato Grosso','São Gabriel do Oeste',
+    'Selvíria','Sonora','Três Lagoas',
+  ],
+};
+const regiaoDoMunicipio = m => Object.keys(REGIOES).find(r => REGIOES[r].includes(m)) || null;
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let online = navigator.onLine;
 let db;
@@ -584,6 +626,7 @@ function limpar(){
   document.getElementById('preco').value='';
   document.getElementById('errs').innerHTML='';
   document.getElementById('result').innerHTML='';
+  document.getElementById('comparativo').innerHTML='';
 }
 
 const fmtDataBR=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4):'';
@@ -601,6 +644,48 @@ function mostrarResultado(tipo,nome,mun,cult,preco,dataNeg){
   </div>`;
 }
 
+// Botão + painel expansível com a média de cada município da região do
+// informante (mesma cultura). Só aparece se a região tem algum dado.
+function blocoRegiao(mun,cult,pack){
+  const reg=regiaoDoMunicipio(mun);
+  if(!reg||!pack||!pack.stats) return '';
+  const linhas=REGIOES[reg]
+    .filter(m=>pack.stats[m]&&pack.stats[m][cult])
+    .map(m=>({m,s:pack.stats[m][cult]}))
+    .sort((a,b)=>a.m.localeCompare(b.m,'pt-BR'));
+  if(!linhas.length) return '';
+  const somaN=linhas.reduce((a,x)=>a+x.s.n,0);
+  const mediaReg=linhas.reduce((a,x)=>a+x.s.media*x.s.n,0)/somaN;
+  const rows=linhas.map(x=>`
+    <div class="rrow${x.m===mun?' me':''}">
+      <span>${x.m===mun?'📍 ':''}${x.m}</span>
+      <span class="rval">${brl(x.s.media)}<span class="rn">/sc · ${x.s.n} produtor${x.s.n>1?'es':''}</span></span>
+    </div>`).join('');
+  return `
+  <button class="bregiao" id="btn-regiao" onclick="toggleRegiao()">Compare com a média da sua região ▾</button>
+  <div id="bloco-regiao" style="display:none">
+    <div class="result" style="margin-top:8px">
+      <div class="rtitle">Região ${reg} — ${cult}</div>
+      <div class="kgrid" style="margin-bottom:10px">
+        <div class="kcard"><div class="klbl">Média da Região</div><div class="kval">${brl(mediaReg)}</div></div>
+        <div class="kcard"><div class="klbl">Municípios com dados</div><div class="kval l">${linhas.length}</div></div>
+      </div>
+      <div class="klbl" style="margin-bottom:2px">MÉDIA POR MUNICÍPIO</div>
+      ${rows}
+    </div>
+  </div>`;
+}
+
+function toggleRegiao(){
+  const b=document.getElementById('bloco-regiao');
+  const btn=document.getElementById('btn-regiao');
+  if(!b||!btn) return;
+  const abrir=b.style.display==='none';
+  b.style.display=abrir?'block':'none';
+  btn.textContent=abrir?'Ocultar comparação da região ▴':'Compare com a média da sua região ▾';
+  if(abrir) b.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
 function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   const el=document.getElementById('comparativo');
   const s=pack && pack.stats && pack.stats[mun] && pack.stats[mun][cult];
@@ -611,7 +696,7 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
       <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${cult}</b> em
       <b style="color:var(--light)">${mun}</b> para comparar.
       Continue enviando — quanto mais produtores participarem, mais útil essa informação fica para todos.</div>
-    </div>`;
+    </div>${blocoRegiao(mun,cult,pack)}`;
     el.scrollIntoView({behavior:'smooth',block:'end'});
     return;
   }
@@ -633,7 +718,8 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
       <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.n}</div></div>
     </div>
     ${grafico}
-  </div>`;
+  </div>
+  ${blocoRegiao(mun,cult,pack)}`;
   el.scrollIntoView({behavior:'smooth',block:'end'});
 }
 
