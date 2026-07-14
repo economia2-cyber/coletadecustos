@@ -656,11 +656,13 @@ function blocoRegiao(mun,cult,pack){
   if(!linhas.length) return '';
   const somaN=linhas.reduce((a,x)=>a+x.s.n,0);
   const mediaReg=linhas.reduce((a,x)=>a+x.s.media*x.s.n,0)/somaN;
-  const rows=linhas.map(x=>`
+  const rows=linhas.map(x=>{
+    const np=x.s.produtores!=null?x.s.produtores:x.s.n;
+    return `
     <div class="rrow${x.m===mun?' me':''}">
       <span>${x.m===mun?'📍 ':''}${x.m}</span>
-      <span class="rval">${brl(x.s.media)}<span class="rn">/sc · ${x.s.n} produtor${x.s.n>1?'es':''}</span></span>
-    </div>`).join('');
+      <span class="rval">${brl(x.s.media)}<span class="rn">/sc · ${np} produtor${np>1?'es':''}</span></span>
+    </div>`;}).join('');
   return `
   <button class="bregiao" id="btn-regiao" onclick="toggleRegiao()">Compare com a média da sua região ▾</button>
   <div id="bloco-regiao" style="display:none">
@@ -715,7 +717,7 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
       <div class="kcard"><div class="klbl">Média do Município</div><div class="kval l">${brl(s.media)}</div></div>
       <div class="kcard"><div class="klbl">Você vs. Média</div><div class="kval ${cor}">${sinal}${diff.toFixed(1)}%</div></div>
       <div class="kcard"><div class="klbl">Faixa (mín–máx)</div><div class="kval l" style="font-size:.82rem">${brl(s.min)} – ${brl(s.max)}</div></div>
-      <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.n}</div></div>
+      <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.produtores!=null?s.produtores:s.n}</div></div>
     </div>
     ${grafico}
   </div>
@@ -781,15 +783,21 @@ async function syncAgora(){
 // Estatísticas agrupadas por município E cultura — soja e milho têm preços
 // muito diferentes, então as médias nunca se misturam. Registros antigos sem
 // cultura ficam no grupo "Não informada".
+// Contagem de produtores: os lançamentos importados da planilha do escritório
+// (Informante "Aprosoja/MS") entram na média, mas não contam um produtor cada —
+// onde só existe a planilha, o grupo vale 1 produtor.
+const INFORMANTE_OFICIAL='Aprosoja/MS';
 function calcularStats(registros){
   const porMun={};
   registros.forEach(r=>{
     const m=r.municipio, p=parseFloat(r.preco);
     const c=(r.cultura||'').trim()||'Não informada';
     if(!m||!p||isNaN(p)||p<=0) return;
+    const oficial=(r.tecnico||'').trim()===INFORMANTE_OFICIAL;
     const grp=porMun[m]=porMun[m]||{};
-    if(!grp[c]) grp[c]={soma:0,n:0,min:p,max:p};
+    if(!grp[c]) grp[c]={soma:0,n:0,nProd:0,temOficial:false,min:p,max:p};
     grp[c].soma+=p; grp[c].n+=1;
+    if(oficial) grp[c].temOficial=true; else grp[c].nProd+=1;
     grp[c].min=Math.min(grp[c].min,p);
     grp[c].max=Math.max(grp[c].max,p);
   });
@@ -798,7 +806,8 @@ function calcularStats(registros){
     out[m]={};
     Object.keys(porMun[m]).forEach(c=>{
       const d=porMun[m][c];
-      out[m][c]={media:d.soma/d.n, min:d.min, max:d.max, n:d.n};
+      out[m][c]={media:d.soma/d.n, min:d.min, max:d.max, n:d.n,
+        produtores:d.nProd>0?d.nProd:(d.temOficial?1:0)};
     });
   });
   return out;
