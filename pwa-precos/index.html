@@ -11,7 +11,7 @@
 
   <!-- Prévia do link no WhatsApp e redes sociais (Open Graph) -->
   <meta property="og:title" content="Coleta de Preços – Aprosoja/MS">
-  <meta property="og:description" content="Informe seu preço de venda e acompanhe a média da sua região. Participe!">
+  <meta property="og:description" content="Informe seu preço de venda e acompanhe a média do seu município. Participe!">
   <meta property="og:image" content="https://economia2-cyber.github.io/coletadecustos/pwa-precos/og-image.png">
   <meta property="og:image:width" content="512">
   <meta property="og:image:height" content="512">
@@ -194,7 +194,7 @@
 <!-- ════════════════ FORMULÁRIO ════════════════ -->
 <div id="page-form" class="page active">
   <div class="ptitle">COLETA DE PREÇOS</div>
-  <div class="psub">Informe seu preço e veja como ele se compara à média da sua região</div>
+  <div class="psub">Informe seu preço e veja como ele se compara à média do seu município</div>
 
   <div id="errs"></div>
 
@@ -283,7 +283,7 @@
 <!-- ════════════════ COMPARTILHAR ════════════════ -->
 <div id="page-share" class="page">
   <div class="ptitle">COMPARTILHAR O APP</div>
-  <div class="psub">Convide outros produtores — quanto mais gente participa, mais precisa fica a média da sua região</div>
+  <div class="psub">Convide outros produtores — quanto mais gente participa, mais precisa fica a média do seu município</div>
 
   <div class="qrbox"><img src="./qr-app.png" alt="QR code para abrir o aplicativo"></div>
   <p style="text-align:center;color:var(--muted);font-size:.72rem;margin:4px 0 14px">
@@ -562,7 +562,7 @@ async function salvar(){
     mostrarResultado(tipo,nome,mun,cultura,preco,dataNeg);
     showToast(online?'Salvo. Sincronizando...':'Salvo no dispositivo. Sincronizará ao conectar.');
     document.getElementById('comparativo').innerHTML =
-      '<div class="result"><div class="rtitle">Calculando preço médio da região...</div></div>';
+      '<div class="result"><div class="rtitle">Calculando preço médio do município...</div></div>';
     document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
     if(online){
       await syncPendentes();
@@ -607,7 +607,7 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   if(!s){
     el.innerHTML=`
     <div class="result">
-      <div class="rtitle">Preço médio da região</div>
+      <div class="rtitle">Preço médio do município</div>
       <div class="edet">Ainda não há dados suficientes de <b style="color:var(--light)">${cult}</b> em
       <b style="color:var(--light)">${mun}</b> para comparar.
       Continue enviando — quanto mais produtores participarem, mais útil essa informação fica para todos.</div>
@@ -621,13 +621,13 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   const serie=(pack&&pack.entries)?serieMunicipio(pack.entries,mun,cult):[];
   const grafico=serie.length>=2
     ? `<div style="margin-top:12px">${svgEvolucao(serie,s.media)}
-       <div class="klbl" style="margin-top:5px;text-align:center">EVOLUÇÃO DO PREÇO — ÚLTIMO MÊS · tracejado = média da região</div></div>`
+       <div class="klbl" style="margin-top:5px;text-align:center">EVOLUÇÃO DO PREÇO — ÚLTIMO MÊS · tracejado = média do município</div></div>`
     : `<div class="edet" style="margin-top:10px;color:var(--label)">O gráfico de evolução aparecerá quando houver coletas em mais de um dia.</div>`;
   el.innerHTML=`
   <div class="result">
     <div class="rtitle">Preço médio de ${cult} em ${mun}${offlineCache?' <span style="color:var(--muted);font-weight:400;font-size:.65rem">(dados salvos offline)</span>':''}</div>
     <div class="kgrid">
-      <div class="kcard"><div class="klbl">Média da Região</div><div class="kval l">${brl(s.media)}</div></div>
+      <div class="kcard"><div class="klbl">Média do Município</div><div class="kval l">${brl(s.media)}</div></div>
       <div class="kcard"><div class="klbl">Você vs. Média</div><div class="kval ${cor}">${sinal}${diff.toFixed(1)}%</div></div>
       <div class="kcard"><div class="klbl">Faixa (mín–máx)</div><div class="kval l" style="font-size:.82rem">${brl(s.min)} – ${brl(s.max)}</div></div>
       <div class="kcard"><div class="klbl">Produtores</div><div class="kval l">${s.n}</div></div>
@@ -691,7 +691,7 @@ async function syncAgora(){
   btn.innerHTML='Sincronizar agora';
 }
 
-// ─── PREÇOS DA REGIÃO (valor devolvido ao produtor em troca do dado) ──────────
+// ─── PREÇOS DO MUNICÍPIO (valor devolvido ao produtor em troca do dado) ───────
 // Estatísticas agrupadas por município E cultura — soja e milho têm preços
 // muito diferentes, então as médias nunca se misturam. Registros antigos sem
 // cultura ficam no grupo "Não informada".
@@ -775,7 +775,7 @@ function svgEvolucao(serie,media){
   const ymLbl=(ym-5<pt)?ym+11:ym-4;                       // não deixa o rótulo da média sair do topo
   const lastLblY=Math.max(Y(last.p)-8,9);                 // idem para o rótulo do último ponto
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img"
-    aria-label="Evolução do preço no último mês, com linha tracejada indicando a média da região">
+    aria-label="Evolução do preço no último mês, com linha tracejada indicando a média do município">
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ih}" stroke="#1c3d28" stroke-width="1"/>
     <line x1="${pl}" y1="${pt+ih}" x2="${W-pr}" y2="${pt+ih}" stroke="#1c3d28" stroke-width="1"/>
     <text x="${pl-4}" y="${pt+4}" text-anchor="end" font-size="8" fill="#6a9978">${fmt(vmax)}</text>
