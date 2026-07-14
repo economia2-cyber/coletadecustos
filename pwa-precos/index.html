@@ -375,8 +375,9 @@ const CAMINHO_DADOS = 'precos_campo.json';
 const CAMINHO_DADOS_OFICIAIS = 'precos_dados.json';
 
 // ─── REGIÕES DO ESTADO (planilha "3 regiões.xlsx") ────────────────────────────
-// Municípios fora das três listas (ex.: Água Clara, Figueirão, Inocência,
-// Ladário) não têm região definida — para eles o botão de comparação não aparece.
+// Água Clara, Figueirão e Inocência não constam na planilha mas pertencem à
+// região Norte (confirmado pela Aprosoja/MS em 14/07/2026). Ladário segue sem
+// região definida — para ele o botão de comparação não aparece.
 const REGIOES = {
   'Sul': [
     'Amambai','Anaurilândia','Angélica','Antônio João','Aral Moreira',
@@ -395,10 +396,10 @@ const REGIOES = {
     'Santa Rita do Pardo','Sidrolândia','Terenos',
   ],
   'Norte': [
-    'Alcinópolis','Aparecida do Taboado','Camapuã','Cassilândia',
-    'Chapadão do Sul','Costa Rica','Coxim','Paraíso das Águas','Paranaíba',
-    'Pedro Gomes','Rio Verde de Mato Grosso','São Gabriel do Oeste',
-    'Selvíria','Sonora','Três Lagoas',
+    'Água Clara','Alcinópolis','Aparecida do Taboado','Camapuã','Cassilândia',
+    'Chapadão do Sul','Costa Rica','Coxim','Figueirão','Inocência',
+    'Paraíso das Águas','Paranaíba','Pedro Gomes','Rio Verde de Mato Grosso',
+    'São Gabriel do Oeste','Selvíria','Sonora','Três Lagoas',
   ],
 };
 const regiaoDoMunicipio = m => Object.keys(REGIOES).find(r => REGIOES[r].includes(m)) || null;
