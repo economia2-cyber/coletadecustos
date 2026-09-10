@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b3d2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Custo Aprosoja">
+  <title>Calculadora de Custo e Margem – Aprosoja/MS</title>
+
+  <meta property="og:title" content="Calculadora de Custo e Margem – Aprosoja/MS">
+  <meta property="og:description" content="Calcule o custo de produção da sua lavoura de soja e compare com a média do estado. Participe!">
+  <meta property="og:image" content="https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:url" content="https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Aprosoja/MS">
+  <meta name="twitter:card" content="summary">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="./icon-192.png">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    :root{
+      --gd:#0b3d2e;--gm:#165c3a;--gl:#1e7a4a;
+      --gold:#c8a646;--goldf:#e4c050;--gold-pale:#f5e9b8;
+      --cream:#f4f0e6;--cream2:#faf8f3;--creamd:#ebe5d6;
+      --td:#1c1c1c;--tm:#3d3d3d;--tl:#7a7a7a;--tx:#a09a86;
+      --bd:#d8cfba;--bdl:#ece6d8;
+      --up:#1e7a4a;--dn:#b23b2e;
+      --r:12px;
+    }
+    html,body{background:var(--cream);color:var(--td);
+      font-family:-apple-system,'Inter','Segoe UI',system-ui,sans-serif;overscroll-behavior:none}
+    body{min-height:100vh;padding-bottom:calc(74px + env(safe-area-inset-bottom,0px))}
+
+    /* ── Header ── */
+    .header{background:var(--gd);padding:12px 16px;display:flex;align-items:center;
+      justify-content:center;position:sticky;top:0;z-index:200;gap:10px;
+      border-bottom:3px solid var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.15)}
+    .header img{height:36px;max-width:190px;object-fit:contain}
+    .dot{position:absolute;right:16px;width:8px;height:8px;border-radius:50%;
+      background:var(--dn);transition:background .4s}
+    .dot.on{background:#4cca82}
+
+    /* ── Pages ── */
+    .page{display:none;padding:14px 14px 10px}
+    .page.active{display:block}
+    .ptitle{font-size:1.15rem;font-weight:800;letter-spacing:.5px;margin-bottom:2px;color:var(--gd)}
+    .psub{font-size:.75rem;color:var(--tl);margin-bottom:14px;line-height:1.4}
+
+    /* ── Progress ── */
+    .progress-wrap{margin-bottom:16px}
+    .progress-track{height:5px;background:var(--bdl);border-radius:4px;overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--gl),var(--gold));
+      border-radius:4px;transition:width .3s ease}
+    .progress-lbl{display:flex;justify-content:space-between;margin-top:6px;
+      font-size:.68rem;color:var(--tl);font-weight:600}
+    .progress-lbl b{color:var(--gd)}
+
+    /* ── Cards / Sections ── */
+    .card{background:linear-gradient(145deg,#ffffff 0%,var(--cream2) 100%);
+      border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:12px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04)}
+    .stitle{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+      color:var(--gd);margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--gold-pale);
+      display:flex;align-items:center;gap:6px}
+
+    /* ── Fields ── */
+    .fg{margin-bottom:12px}
+    .fg:last-child{margin-bottom:0}
+    label{display:block;font-size:.76rem;color:var(--tm);margin-bottom:4px;font-weight:600}
+    .fhint{font-size:.66rem;color:var(--tx);margin-top:3px}
+    input,select,textarea{width:100%;padding:11px 12px;background:#ffffff;
+      border:1.5px solid var(--bd);border-radius:9px;color:var(--td);
+      font-size:.92rem;outline:none;-webkit-appearance:none;font-family:inherit}
+    input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,166,70,.15)}
+    input[type=number]{font-variant-numeric:tabular-nums}
+    select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a7a' stroke-width='1.6' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+    /* ── Buttons ── */
+    .bprimary{width:100%;padding:14px;background:var(--gold);color:var(--gd);
+      border:none;border-radius:10px;font-size:.94rem;font-weight:800;
+      letter-spacing:.3px;cursor:pointer;box-shadow:0 3px 10px rgba(200,166,70,.35)}
+    .bprimary:active{transform:scale(.985)}
+    .bsecondary{padding:12px 16px;background:#ffffff;color:var(--gd);
+      border:1.5px solid var(--bd);border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer}
+    .bghost{padding:12px 16px;background:transparent;color:var(--tl);
+      border:none;border-radius:10px;font-size:.82rem;cursor:pointer;text-decoration:underline}
+    .bsync{width:100%;padding:12px;background:var(--gd);color:var(--gold-pale);
+      border:1px solid var(--gl);border-radius:10px;font-size:.85rem;font-weight:700;
+      cursor:pointer;margin-top:10px}
+    .steprow{display:flex;gap:10px;margin-top:16px}
+    .steprow .bsecondary{flex:0 0 auto}
+    .steprow .bprimary{flex:1}
+
+    /* ── Errors ── */
+    .err{background:rgba(178,59,46,.08);border:1px solid rgba(178,59,46,.35);
+      border-radius:9px;padding:10px 12px;color:var(--dn);font-size:.8rem;margin-bottom:10px;font-weight:600}
+
+    /* ── KPI grid ── */
+    .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .kcard{background:linear-gradient(145deg,#ffffff,var(--cream2));border:1px solid var(--bd);
+      border-radius:10px;padding:12px 10px;text-align:center}
+    .klbl{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+      color:var(--tl);margin-bottom:5px}
+    .kval{font-size:1.12rem;font-weight:800;color:var(--gd);line-height:1.1}
+    .kval.gold{color:var(--gold)}
+    .kval.g{color:var(--up)}
+    .kval.r{color:var(--dn)}
+    .ksub{font-size:.62rem;color:var(--tx);margin-top:3px}
+
+    /* ── Insights ── */
+    .ins{border-left:3px solid var(--tl);background:var(--cream2);border-radius:8px;
+      padding:9px 11px;margin-bottom:7px;font-size:.82rem;line-height:1.4;display:flex;gap:8px}
+    .ins b.ico{flex-shrink:0}
+    .ins.ok{border-color:var(--up);background:#eef6ee;color:#0b3d2e}
+    .ins.alerta{border-color:var(--dn);background:#fbeeec;color:#5c2018}
+    .ins.info{border-color:var(--tl);background:var(--cream2);color:var(--tm)}
+
+    /* ── Donut chart (composição) ── */
+    .donut-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+    .donut-center{font-size:.72rem;text-align:center;color:var(--tl);font-weight:700}
+    .donut-center b{display:block;font-size:1.05rem;color:var(--gd)}
+    .legend{display:flex;flex-direction:column;gap:5px;font-size:.72rem;flex:1;min-width:150px}
+    .lgi{display:flex;align-items:center;gap:6px}
+    .lgc{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+    .lgi span.pct{margin-left:auto;font-weight:700;color:var(--tm)}
+
+    /* ── Comparativo (barras) ── */
+    .cmp-row{margin-bottom:12px}
+    .cmp-lbl{display:flex;justify-content:space-between;font-size:.76rem;font-weight:700;
+      color:var(--tm);margin-bottom:4px}
+    .cmp-bar-track{height:9px;background:var(--bdl);border-radius:5px;overflow:hidden;margin-bottom:2px;position:relative}
+    .cmp-bar{height:100%;border-radius:5px}
+    .cmp-bar.media{background:#b9ae95}
+    .cmp-bar.voce{background:var(--gold)}
+    .cmp-vals{display:flex;justify-content:space-between;font-size:.64rem;color:var(--tx)}
+
+    /* ── Item detail cards ── */
+    .item-card{border:1px solid var(--bdl);border-radius:9px;padding:9px 11px;margin-bottom:6px;background:#fff}
+    .item-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+    .item-name{font-size:.82rem;font-weight:700;color:var(--td)}
+    .badge{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+    .badge.acima{background:rgba(178,59,46,.12);color:var(--dn)}
+    .badge.abaixo{background:rgba(30,122,74,.12);color:var(--up)}
+    .badge.dentro{background:var(--bdl);color:var(--tl)}
+    .item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:.66rem;color:var(--tl)}
+    .item-grid b{display:block;font-size:.78rem;color:var(--td);font-weight:700}
+    .item-bar-track{height:5px;background:var(--bdl);border-radius:3px;margin-top:7px;overflow:hidden}
+    .item-bar{height:100%;background:var(--gold);border-radius:3px}
+
+    /* ── Revisão (resumo) ── */
+    .resumo-row{display:flex;justify-content:space-between;padding:7px 0;
+      border-bottom:1px solid var(--bdl);font-size:.82rem}
+    .resumo-row:last-child{border-bottom:none}
+    .resumo-row b{color:var(--gd)}
+
+    /* ── Sync bar ── */
+    .sbar{background:var(--cream2);border:1px solid var(--bd);border-radius:9px;
+      padding:10px 13px;font-size:.78rem;color:var(--tm);margin-bottom:12px}
+
+    /* ── Entry cards (pendentes) ── */
+    .ecard{background:#fff;border:1px solid var(--bd);border-radius:10px;
+      padding:12px;margin-bottom:9px;cursor:pointer}
+    .ecard:active{background:var(--cream2)}
+    .ehead{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+    .emun{font-weight:700;color:var(--gd);font-size:.88rem}
+    .edet{font-size:.72rem;color:var(--tl)}
+    .bpend{background:rgba(200,166,70,.15);color:#8a6d1f;border:1px solid var(--gold)}
+    .bsync2{background:rgba(30,122,74,.12);color:var(--up);border:1px solid var(--up)}
+
+    .empty{text-align:center;color:var(--tl);padding:50px 20px;font-size:.85rem;line-height:1.6}
+    .snote{background:rgba(200,166,70,.1);border:1px solid rgba(200,166,70,.35);
+      border-radius:9px;padding:11px 13px;font-size:.74rem;color:var(--tm);
+      margin-bottom:14px;line-height:1.5}
+
+    /* ── Bottom nav ── */
+    .bnav{position:fixed;bottom:0;left:0;right:0;background:#ffffff;
+      border-top:1px solid var(--bd);display:flex;z-index:200;
+      padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+    .nbtn{flex:1;padding:12px 6px 10px;background:transparent;border:none;
+      border-top:2.5px solid transparent;color:var(--tl);font-size:.66rem;
+      font-weight:700;letter-spacing:.4px;cursor:pointer;position:relative;
+      display:flex;flex-direction:column;align-items:center;gap:3px}
+    .nbtn .ic{font-size:1.15rem}
+    .nbtn.active{color:var(--gd);border-top-color:var(--gold)}
+    .bcnt{position:absolute;top:2px;left:50%;margin-left:10px;
+      background:var(--dn);color:#fff;font-size:.56rem;padding:1px 4px;
+      border-radius:8px;font-weight:700;display:none}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+      background:var(--gd);border:1px solid var(--gold);border-radius:9px;
+      padding:11px 18px;color:#fff;font-size:.82rem;z-index:300;
+      box-shadow:0 4px 16px rgba(0,0,0,.25);opacity:0;transition:opacity .3s;
+      max-width:88vw;text-align:center;pointer-events:none}
+    .toast.show{opacity:1}
+    .toast.err2{border-color:var(--dn);background:#5c2018}
+
+    .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+      border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;vertical-align:middle}
+    .bsecondary .spin{border:2px solid var(--bd);border-top-color:var(--gd)}
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    .footnote{margin-top:14px;padding:10px 12px;border-top:1px solid var(--bdl);
+      color:var(--tx);font-size:.66rem;line-height:1.5;text-align:center}
+
+    hr{border:none;border-top:1px solid var(--bdl);margin:14px 0}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+    #splash{position:fixed;inset:0;background:var(--gd);display:flex;flex-direction:column;
+      align-items:center;justify-content:center;z-index:9999;transition:opacity .5s ease;gap:18px}
+    #splash img{width:66%;max-width:260px;object-fit:contain}
+    #splash .splash-sub{color:var(--gold-pale);font-size:.8rem;letter-spacing:1px;text-align:center;padding:0 30px}
+    #splash.fade{opacity:0;pointer-events:none}
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+  <div class="splash-sub">Calculadora de Custo e Margem</div>
+</div>
+
+<div class="header">
+  <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+  <div id="dot" class="dot"></div>
+</div>
+
+<!-- ════════════════ CALCULADORA (assistente por etapas) ════════════════ -->
+<div id="page-calc" class="page active">
+
+  <div id="wizard">
+    <div class="ptitle">CUSTO DE PRODUÇÃO — SOJA</div>
+    <div class="psub" id="step-sub">Preencha os custos reais da sua lavoura, etapa por etapa</div>
+
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:14%"></div></div>
+      <div class="progress-lbl"><span>Etapa <b id="step-num">1</b> de <b id="step-total">7</b></span><span id="step-name"></span></div>
+    </div>
+
+    <div id="errs"></div>
+    <div class="card" id="step-content"></div>
+
+    <div class="steprow">
+      <button class="bsecondary" id="btn-back" onclick="stepBack()" style="display:none">◂ Voltar</button>
+      <button class="bprimary" id="btn-next" onclick="stepNext()">Próximo ▸</button>
+    </div>
+  </div>
+
+  <div id="report-view" style="display:none"></div>
+
+  <div class="footnote">Os dados informados alimentam a base de custos regionais da Aprosoja/MS,
+    usada apenas de forma agregada — nenhuma informação individual é divulgada.</div>
+</div>
+
+<!-- ════════════════ PENDENTES ════════════════ -->
+<div id="page-pending" class="page">
+  <div class="ptitle">CÁLCULOS SALVOS</div>
+  <div class="psub">Relatórios salvos neste aparelho</div>
+
+  <div class="sbar" id="sbar"><span id="sbar-txt">Verificando...</span></div>
+  <button class="bsync" id="bsync" onclick="syncAgora()" style="display:none">Sincronizar agora</button>
+
+  <div id="elist"></div>
+  <div class="empty" id="empty-state" style="display:none">Nenhum cálculo salvo ainda.<br>Vá em "Calcular" para começar.</div>
+</div>
+
+<!-- ════════════════ COMPARTILHAR ════════════════ -->
+<div id="page-share" class="page">
+  <div class="ptitle">COMPARTILHAR O APP</div>
+  <div class="psub">Convide outros produtores a calcular o custo da própria lavoura</div>
+  <div class="sbar" style="text-align:center;word-break:break-all" id="share-link"></div>
+  <button class="bprimary" onclick="compartilharApp()">Compartilhar link</button>
+  <button class="bsecondary" style="width:100%;margin-top:8px" onclick="copiarLink()">Copiar link</button>
+  <hr>
+  <div class="stitle">SOBRE</div>
+  <p style="font-size:.82rem;color:var(--tm);line-height:1.6">
+    Este app calcula o custo de produção da sua lavoura de soja, compara com a média
+    Aprosoja/MS e mostra o ponto de equilíbrio e a margem — tudo funciona offline e
+    sincroniza quando você tiver conexão.
+  </p>
+  <p style="font-size:.7rem;color:var(--tx);margin-top:10px">Safra de referência: <b id="about-safra" style="color:var(--gd)"></b></p>
+</div>
+
+<!-- ════════════════ AJUSTES (acesso: 7 toques no logo) ════════════════ -->
+<div id="page-settings" class="page">
+  <div class="ptitle">AJUSTES</div>
+  <div class="psub">Conexão para sincronização dos dados</div>
+  <div class="snote">O token de acesso fica salvo <b>apenas neste dispositivo</b> e nunca é exibido.
+    Peça o link de configuração à Aprosoja/MS, ou preencha manualmente abaixo.</div>
+  <div class="fg"><label>GitHub Token (Personal Access Token)</label>
+    <input type="password" id="cfg-token" placeholder="github_pat_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
+  <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
+    <input type="text" id="cfg-repo" placeholder="economia2-cyber/calculadora-de-custo"></div>
+  <button class="bprimary" onclick="salvarCfg()">Salvar configurações</button>
+  <hr>
+  <p style="text-align:center;color:var(--tx);font-size:.7rem;padding:6px 0">Aprosoja/MS · Custo e Margem</p>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bnav">
+  <button class="nbtn active" id="nav-calc" onclick="showPage('calc')"><span class="ic">🧮</span>Calcular</button>
+  <button class="nbtn" id="nav-pending" onclick="showPage('pending')"><span class="ic">📋</span>Salvos<span id="bcnt" class="bcnt">0</span></button>
+  <button class="nbtn" id="nav-share" onclick="showPage('share')"><span class="ic">📤</span>Compartilhar</button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── LABELS / GRUPOS / CAMPOS (mesmo padrão de calculo.py) ────────────────────
+const LABELS = {
+  op_maquinas:'Operação com Máquinas Próprias', mao_obra:'Mão de Obra',
+  semente:'Sementes', trat_semente:'Tratamento de Semente', corretivo:'Corretivo de Solo',
+  fertilizante:'Fertilizante', fungicida:'Fungicida', herbicida:'Herbicida',
+  inseticida:'Inseticida', inoculantes:'Inoculantes', adjuvante:'Adjuvante',
+  desp_admin:'Despesas Administrativas', desp_armazenagem:'Armazenagem',
+  seguro_producao:'Seguro da Produção', assist_tecnica:'Assistência Técnica',
+  impostos_taxas:'Impostos e Taxas', transporte:'Transporte Externo',
+  juros:'Juros de Financiamento', deprec_benfeit:'Depreciação de Benfeitorias',
+  deprec_maquinas:'Depreciação de Máquinas e Implementos',
+  manut_periodica:'Manutenção Periódica de Benfeitorias', encargos_sociais:'Encargos Sociais',
+  seguro_capital:'Seguro do Capital Fixo', renda_fatores:'Remuneração Esperada sobre Capital Fixo',
+};
+const CAMPOS_TOTAL = ['op_maquinas','mao_obra','semente','trat_semente','corretivo','fertilizante',
+  'fungicida','herbicida','inseticida','inoculantes','adjuvante','desp_admin','desp_armazenagem',
+  'seguro_producao','assist_tecnica','impostos_taxas','transporte','juros'];
+const CAMPOS_POR_HA = ['deprec_benfeit','deprec_maquinas','manut_periodica','encargos_sociais','seguro_capital','renda_fatores'];
+const CAMPOS_CUSTO_VARIAVEL = ['op_maquinas','mao_obra','semente','trat_semente','corretivo','fertilizante',
+  'fungicida','herbicida','inseticida','inoculantes','adjuvante','desp_admin','desp_armazenagem',
+  'seguro_producao','assist_tecnica','impostos_taxas','transporte','juros'];
+const CAMPOS_CUSTO_FIXO = ['deprec_benfeit','deprec_maquinas','manut_periodica','encargos_sociais','seguro_capital'];
+const CAMPOS_RENDA_FATORES = ['renda_fatores'];
+const GRUPOS = {
+  'Operação com Máquinas': ['op_maquinas'],
+  'Mão de Obra': ['mao_obra'],
+  'Insumos': ['semente','trat_semente','corretivo','fertilizante','fungicida','herbicida','inseticida','inoculantes','adjuvante'],
+  'Outras Despesas': ['desp_admin','desp_armazenagem','seguro_producao','assist_tecnica','impostos_taxas','transporte'],
+  'Despesas Financeiras': ['juros'],
+  'Depreciações': ['deprec_benfeit','deprec_maquinas'],
+  'Outros Custos Fixos': ['manut_periodica','encargos_sociais','seguro_capital'],
+  'Renda de Fatores': ['renda_fatores'],
+};
+const CORES_GRUPO = ['#0b3d2e','#165c3a','#1e7a4a','#c8a646','#3d7a9e','#8a5a44','#6b6b3e','#a3455c'];
+const LIMIAR_ALERTA = 0.10;
+
+const MUNICIPIOS_MS = ['Água Clara','Alcinópolis','Amambai','Anastácio','Anaurilândia','Angélica',
+  'Antônio João','Aparecida do Taboado','Aquidauana','Aral Moreira','Bandeirantes','Bataguassu',
+  'Batayporã','Bela Vista','Bodoquena','Bonito','Brasilândia','Caarapó','Camapuã','Campo Grande',
+  'Caracol','Cassilândia','Chapadão do Sul','Corguinho','Coronel Sapucaia','Corumbá','Costa Rica',
+  'Coxim','Deodápolis','Dois Irmãos do Buriti','Douradina','Dourados','Eldorado','Fátima do Sul',
+  'Figueirão','Glória de Dourados','Guia Lopes da Laguna','Iguatemi','Inocência','Itaporã','Itaquiraí',
+  'Ivinhema','Japorã','Jaraguari','Jardim','Jateí','Juti','Ladário','Laguna Carapã','Maracaju',
+  'Miranda','Mundo Novo','Naviraí','Nioaque','Nova Alvorada do Sul','Nova Andradina',
+  'Novo Horizonte do Sul','Paraíso das Águas','Paranaíba','Paranhos','Pedro Gomes','Ponta Porã',
+  'Porto Murtinho','Ribas do Rio Pardo','Rio Brilhante','Rio Negro','Rio Verde de Mato Grosso',
+  'Rochedo','Santa Rita do Pardo','São Gabriel do Oeste','Selvíria','Sete Quedas','Sidrolândia',
+  'Sonora','Tacuru','Taquarussu','Terenos','Três Lagoas','Vicentina'];
+
+const CAMINHO_DADOS = 'custos_campo.json';
+const REPO_DEFAULT = 'economia2-cyber/calculadora-de-custo';
+
+// ─── ETAPAS DO ASSISTENTE ──────────────────────────────────────────────────────
+const STEPS = [
+  {id:'lavoura', nome:'Dados da Lavoura', tipo:'lavoura'},
+  {id:'maq', nome:'Máquinas, Mão de Obra e Financeiro', campos:['op_maquinas','mao_obra','juros'], modo:'total'},
+  {id:'insumos', nome:'Insumos da Lavoura', campos: GRUPOS['Insumos'], modo:'total'},
+  {id:'outras', nome:'Outras Despesas', campos: GRUPOS['Outras Despesas'], modo:'total'},
+  {id:'fixo', nome:'Custo Fixo', campos:['deprec_benfeit','deprec_maquinas','manut_periodica','encargos_sociais','seguro_capital'], modo:'perha'},
+  {id:'oportunidade', nome:'Custo de Oportunidade do Capital', campos:['renda_fatores'], modo:'perha'},
+  {id:'revisao', nome:'Revisão e Cálculo', tipo:'revisao'},
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let online = navigator.onLine;
+let db;
+let REF = null;                 // tabela de referência (pwa/reference.json)
+let stepIdx = 0;
+let valores = {};                // valores atuais do formulário
+CAMPOS_TOTAL.forEach(k=>valores[k]=0);
+CAMPOS_POR_HA.forEach(k=>valores[k]=0);
+let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
+
+// ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
+const brl = (v,dec=2)=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const n1 = v=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const pct0 = v=>((v||0)*100).toFixed(0)+'%';
+
+// ─── REFERÊNCIA ───────────────────────────────────────────────────────────────
+async function carregarReferencia(){
+  try{
+    const r = await fetch('./reference.json',{cache:'no-cache'});
+    REF = await r.json();
+  }catch(e){
+    try{ REF = JSON.parse(localStorage.getItem('ref_cache')); }catch(_){}
+  }
+  if(REF) localStorage.setItem('ref_cache', JSON.stringify(REF));
+  return REF;
+}
+
+// ─── MOTOR DE CÁLCULO (mesma lógica de calculo.py) ─────────────────────────────
+function status(deltaPct){
+  if(deltaPct===null||deltaPct===undefined) return 'sem_ref';
+  if(deltaPct>LIMIAR_ALERTA) return 'acima';
+  if(deltaPct<-LIMIAR_ALERTA) return 'abaixo';
+  return 'dentro';
+}
+function linha(rha, custoTotalRha, preco, ref){
+  const pct = custoTotalRha ? rha/custoTotalRha : 0;
+  const scha = preco ? rha/preco : 0;
+  const refRha = ref ? ref.rha : null;
+  const deltaPct = refRha ? (rha-refRha)/refRha : null;
+  return {
+    rha, scha, pct,
+    ref_rha: refRha, ref_scha: ref?ref.scha:null, ref_pct: ref?ref.pct:null,
+    delta_pct: deltaPct, delta_scha: ref ? (scha-ref.scha) : null,
+    status: status(deltaPct),
+  };
+}
+function calcular(valores, area, produtividade, preco, ref){
+  const rha = {};
+  CAMPOS_TOTAL.forEach(k=> rha[k] = area ? (valores[k]||0)/area : 0);
+  CAMPOS_POR_HA.forEach(k=> rha[k] = valores[k]||0);
+
+  const custoVariavelRha = CAMPOS_CUSTO_VARIAVEL.reduce((s,k)=>s+rha[k],0);
+  const custoFixoRha = CAMPOS_CUSTO_FIXO.reduce((s,k)=>s+rha[k],0);
+  const custoOperacionalRha = custoVariavelRha + custoFixoRha;
+  const rendaFatoresRha = CAMPOS_RENDA_FATORES.reduce((s,k)=>s+rha[k],0);
+  const custoTotalRha = custoOperacionalRha + rendaFatoresRha;
+
+  const receitaRha = produtividade * preco;
+  const margemOperacionalRha = receitaRha - custoOperacionalRha;
+  const margemTotalRha = receitaRha - custoTotalRha;
+  const pontoEqOperacional = preco ? custoOperacionalRha/preco : 0;
+  const pontoEqTotal = preco ? custoTotalRha/preco : 0;
+  const custoScOperacional = produtividade ? custoOperacionalRha/produtividade : 0;
+  const custoScTotal = produtividade ? custoTotalRha/produtividade : 0;
+  const lucratividadePct = receitaRha ? margemTotalRha/receitaRha : 0;
+
+  const refItens = ref.itens;
+  const itens = {};
+  Object.keys(rha).forEach(k=> itens[k]=linha(rha[k], custoTotalRha, preco, refItens[k]));
+
+  const grupos = {};
+  Object.keys(GRUPOS).forEach(nome=>{
+    const chaves = GRUPOS[nome];
+    const gRha = chaves.reduce((s,k)=>s+rha[k],0);
+    const refG = {
+      rha: chaves.reduce((s,k)=>s+refItens[k].rha,0),
+      scha: chaves.reduce((s,k)=>s+refItens[k].scha,0),
+      pct: chaves.reduce((s,k)=>s+refItens[k].pct,0),
+    };
+    grupos[nome] = linha(gRha, custoTotalRha, preco, refG);
+    grupos[nome].chaves = chaves;
+  });
+
+  const refAgr = ref.agregados;
+  const agregados = {
+    custo_variavel: linha(custoVariavelRha, custoTotalRha, preco, refAgr.custo_variavel),
+    custo_fixo: linha(custoFixoRha, custoTotalRha, preco, refAgr.custo_fixo),
+    custo_operacional: linha(custoOperacionalRha, custoTotalRha, preco, refAgr.custo_operacional),
+    custo_total: linha(custoTotalRha, custoTotalRha, preco, refAgr.custo_total),
+  };
+
+  return {
+    area, produtividade, preco, itens, grupos, agregados,
+    custo_variavel_rha:custoVariavelRha, custo_fixo_rha:custoFixoRha,
+    custo_operacional_rha:custoOperacionalRha, renda_fatores_rha:rendaFatoresRha,
+    custo_total_rha:custoTotalRha, receita_rha:receitaRha,
+    margem_operacional_rha:margemOperacionalRha, margem_total_rha:margemTotalRha,
+    ponto_eq_operacional:pontoEqOperacional, ponto_eq_total:pontoEqTotal,
+    custo_sc_operacional:custoScOperacional, custo_sc_total:custoScTotal,
+    lucratividade_pct:lucratividadePct,
+  };
+}
+
+// ─── DIAGNÓSTICO (mesma lógica de insights.py) ─────────────────────────────────
+function gerarInsights(r){
+  const ins=[];
+  const ct = r.agregados.custo_total;
+  if(ct.delta_pct!==null){
+    if(ct.status==='acima'){
+      ins.push(['alerta', `Seu custo total é ${(ct.delta_pct*100).toFixed(1)}% maior que a média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha) — isso equivale a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo.`]);
+    }else if(ct.status==='abaixo'){
+      ins.push(['ok', `Seu custo total está ${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha) — economia de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
+    }else{
+      ins.push(['info', `Seu custo total está dentro da faixa da média Aprosoja/MS (${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha).`]);
+    }
+  }
+  const acima = Object.entries(r.grupos).filter(([,g])=>g.status==='acima').sort((a,b)=>b[1].delta_scha-a[1].delta_scha);
+  acima.slice(0,3).forEach(([nome,g])=>{
+    ins.push(['alerta', `${nome}: ${brl(g.rha)}/ha — ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha a mais).`]);
+  });
+  const abaixo = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
+  abaixo.slice(0,2).forEach(([nome,g])=>{
+    ins.push(['ok', `${nome}: ${brl(g.rha)}/ha — ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+  });
+  const prod=r.produtividade, peqT=r.ponto_eq_total, peqO=r.ponto_eq_operacional, folga=prod-peqT;
+  if(folga>=0){
+    ins.push(['ok', `Sua produtividade (${n1(prod)} sc/ha) supera o ponto de equilíbrio total (${n1(peqT)} sc/ha) em ${folga.toFixed(1)} sc/ha — margem positiva mesmo cobrindo o custo de oportunidade do capital.`]);
+  }else if(prod>=peqO){
+    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${Math.abs(folga).toFixed(1)} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha) — não sobra para remunerar o capital investido.`]);
+  }else{
+    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha) — a lavoura está operando no prejuízo em caixa.`]);
+  }
+  const lp=r.lucratividade_pct*100;
+  if(lp>=15) ins.push(['ok', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta.`]);
+  else if(lp>=0) ins.push(['info', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta — margem apertada.`]);
+  else ins.push(['alerta', `Margem total negativa: ${lp.toFixed(1)}% sobre a receita bruta.`]);
+  return ins;
+}
+
+// ─── ASSISTENTE: NAVEGAÇÃO ──────────────────────────────────────────────────────
+function renderStep(){
+  const step = STEPS[stepIdx];
+  document.getElementById('step-num').textContent = stepIdx+1;
+  document.getElementById('step-total').textContent = STEPS.length;
+  document.getElementById('step-name').textContent = step.nome;
+  document.getElementById('progress-fill').style.width = (((stepIdx+1)/STEPS.length)*100)+'%';
+  document.getElementById('btn-back').style.display = stepIdx===0 ? 'none' : 'block';
+  document.getElementById('btn-next').textContent = step.tipo==='revisao' ? '🔍 CALCULAR E SALVAR' : 'Próximo ▸';
+  document.getElementById('errs').innerHTML='';
+
+  const c = document.getElementById('step-content');
+  if(step.tipo==='lavoura'){
+    c.innerHTML = `
+      <div class="stitle">📋 Dados da Lavoura</div>
+      <div class="fg"><label>Produtor / Técnico *</label>
+        <input type="text" id="f-produtor" placeholder="Nome completo" value="${lavoura.produtor}"></div>
+      <div class="fg"><label>Município *</label>
+        <select id="f-municipio">${['<option value="">Selecione...</option>'].concat(
+          MUNICIPIOS_MS.map(m=>`<option value="${m}"${m===lavoura.municipio?' selected':''}>${m}</option>`)
+        ).join('')}</select></div>
+      <div class="fg"><label>Área (ha) *</label>
+        <input type="number" id="f-area" inputmode="decimal" min="0" step="1" placeholder="0" value="${lavoura.area||''}"></div>
+      <div class="fg"><label>Produtividade (sc/ha) *</label>
+        <input type="number" id="f-produtividade" inputmode="decimal" min="0" step="0.5" placeholder="0" value="${lavoura.produtividade||''}"></div>
+      <div class="fg"><label>Preço de venda (R$/sc) *</label>
+        <input type="number" id="f-preco" inputmode="decimal" min="0" step="0.5" value="${lavoura.preco||''}">
+        <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'—'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
+    `;
+  }else if(step.tipo==='revisao'){
+    const gruposHtml = Object.keys(GRUPOS).map(nome=>{
+      const total = GRUPOS[nome].reduce((s,k)=>s+ (step.campos ? 0 : 0),0); // placeholder, recompute below
+      return '';
+    }).join('');
+    let totalGeral = 0;
+    CAMPOS_TOTAL.forEach(k=>totalGeral += (valores[k]||0));
+    const perHaTotal = CAMPOS_POR_HA.reduce((s,k)=>s+(valores[k]||0)*(lavoura.area||0),0);
+    c.innerHTML = `
+      <div class="stitle">🔍 Revise antes de calcular</div>
+      <div class="resumo-row"><span>Produtor</span><b>${lavoura.produtor||'—'}</b></div>
+      <div class="resumo-row"><span>Município</span><b>${lavoura.municipio||'—'}</b></div>
+      <div class="resumo-row"><span>Área</span><b>${n1(lavoura.area)} ha</b></div>
+      <div class="resumo-row"><span>Produtividade</span><b>${n1(lavoura.produtividade)} sc/ha</b></div>
+      <div class="resumo-row"><span>Preço de venda</span><b>${brl(lavoura.preco)}/sc</b></div>
+      <hr>
+      <div class="resumo-row"><span>Total custo variável (gasto informado)</span><b>${brl(totalGeral)}</b></div>
+      <div class="resumo-row"><span>Total custo fixo + oportunidade (estimado)</span><b>${brl(perHaTotal)}</b></div>
+      <div class="fhint" style="margin-top:10px">Toque em "Calcular e Salvar" para ver o relatório completo — a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+    `;
+  }else{
+    const modo = step.modo;
+    c.innerHTML = `<div class="stitle">${modo==='total'?'💰':'⚙️'} ${step.nome}</div>` +
+      (modo==='total' ? `<div class="fhint" style="margin-bottom:10px">Informe o valor <b>total gasto na safra</b> (R$) em cada item.</div>`
+                       : `<div class="fhint" style="margin-bottom:10px">Informe em <b>R$/ha</b> — já preenchido com a média Aprosoja/MS; ajuste se souber o seu valor real.</div>`) +
+      step.campos.map(k=>{
+        const refRha = REF.itens[k].rha;
+        const val = valores[k];
+        return `
+        <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':''}</label>
+          <input type="number" id="c-${k}" inputmode="decimal" min="0" step="${modo==='perha'?'1':(refRha>300?'500':'50')}" value="${val||(modo==='perha'?refRha.toFixed(2):'')}">
+          <div class="fhint">Média Aprosoja/MS: ${brl(refRha)}/ha</div>
+        </div>`;
+      }).join('');
+  }
+}
+
+function lerCamposEtapa(){
+  const step = STEPS[stepIdx];
+  if(step.tipo==='lavoura'){
+    lavoura.produtor = document.getElementById('f-produtor').value.trim();
+    lavoura.municipio = document.getElementById('f-municipio').value;
+    lavoura.area = parseFloat(document.getElementById('f-area').value)||0;
+    lavoura.produtividade = parseFloat(document.getElementById('f-produtividade').value)||0;
+    lavoura.preco = parseFloat(document.getElementById('f-preco').value)||0;
+    return true;
+  }
+  if(step.tipo==='revisao') return true;
+  step.campos.forEach(k=>{
+    const el = document.getElementById('c-'+k);
+    valores[k] = el ? (parseFloat(el.value)||0) : (valores[k]||0);
+  });
+  return true;
+}
+
+function validarEtapa(){
+  const step = STEPS[stepIdx];
+  const erros=[];
+  if(step.tipo==='lavoura'){
+    if(!lavoura.produtor) erros.push('Preencha o campo <b>Produtor / Técnico</b>.');
+    if(!lavoura.municipio) erros.push('Selecione o <b>Município</b>.');
+    if(lavoura.area<=0) erros.push('<b>Área</b> deve ser maior que zero.');
+    if(lavoura.produtividade<=0) erros.push('<b>Produtividade</b> deve ser maior que zero.');
+    if(lavoura.preco<=0) erros.push('<b>Preço de venda</b> deve ser maior que zero.');
+  }
+  if(erros.length){
+    document.getElementById('errs').innerHTML = erros.map(e=>`<div class="err">${e}</div>`).join('');
+    return false;
+  }
+  return true;
+}
+
+function stepNext(){
+  lerCamposEtapa();
+  if(!validarEtapa()) return;
+  const step = STEPS[stepIdx];
+  if(step.tipo==='revisao'){ calcularESalvar(); return; }
+  stepIdx++;
+  renderStep();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function stepBack(){
+  lerCamposEtapa();
+  stepIdx--;
+  renderStep();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ─── RELATÓRIO ──────────────────────────────────────────────────────────────────
+function svgDonut(grupos, custoTotalRha){
+  const nomes = Object.keys(grupos);
+  const R=54,CX=64,CY=64,STROKE=22,CIRC=2*Math.PI*R;
+  let offset=0;
+  const segs = nomes.map((nome,i)=>{
+    const v = Math.max(grupos[nome].rha,0);
+    const frac = custoTotalRha ? v/custoTotalRha : 0;
+    const len = frac*CIRC;
+    const seg = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${CORES_GRUPO[i%CORES_GRUPO.length]}"
+      stroke-width="${STROKE}" stroke-dasharray="${len.toFixed(2)} ${(CIRC-len).toFixed(2)}"
+      stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${CX} ${CY})"/>`;
+    offset += len;
+    return seg;
+  }).join('');
+  return `<svg width="128" height="128" viewBox="0 0 128 128">${segs}</svg>`;
+}
+
+function renderRelatorio(r, meta){
+  const mc = r.margem_total_rha>=0 ? 'g':'r';
+  const mo = r.margem_operacional_rha>=0 ? 'g':'r';
+  const donut = svgDonut(r.grupos, r.custo_total_rha);
+  const legend = Object.keys(r.grupos).map((nome,i)=>`
+    <div class="lgi"><span class="lgc" style="background:${CORES_GRUPO[i%CORES_GRUPO.length]}"></span>
+      ${nome}<span class="pct">${pct0(r.grupos[nome].pct)}</span></div>`).join('');
+
+  const maxRha = Math.max(...Object.values(r.grupos).map(g=>Math.max(g.rha, g.ref_rha||0)));
+  const cmpRows = Object.keys(r.grupos).map(nome=>{
+    const g = r.grupos[nome];
+    const wMedia = maxRha ? (g.ref_rha||0)/maxRha*100 : 0;
+    const wVoce = maxRha ? g.rha/maxRha*100 : 0;
+    return `
+    <div class="cmp-row">
+      <div class="cmp-lbl"><span>${nome}</span></div>
+      <div class="cmp-bar-track"><div class="cmp-bar media" style="width:${wMedia}%"></div></div>
+      <div class="cmp-vals"><span>Média: ${brl(g.ref_rha||0)}/ha</span></div>
+      <div class="cmp-bar-track" style="margin-top:3px"><div class="cmp-bar voce" style="width:${wVoce}%"></div></div>
+      <div class="cmp-vals"><span>Você: ${brl(g.rha)}/ha</span></div>
+    </div>`;
+  }).join('');
+
+  const itemRows = Object.keys(r.itens).map(k=>{
+    const it = r.itens[k];
+    const maxPct = Math.max(...Object.values(r.itens).map(x=>x.pct));
+    const barW = maxPct ? (it.pct/maxPct*100) : 0;
+    const badgeLbl = {acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'}[it.status]||'—';
+    return `
+    <div class="item-card">
+      <div class="item-top"><span class="item-name">${LABELS[k]}</span><span class="badge ${it.status}">${badgeLbl}</span></div>
+      <div class="item-grid">
+        <div>R$/ha<b>${it.rha.toFixed(2)}</b></div>
+        <div>sc/ha<b>${it.scha.toFixed(2)}</b></div>
+        <div>% custo<b>${(it.pct*100).toFixed(1)}%</b></div>
+        <div>Média MS<b>${it.ref_rha!=null?it.ref_rha.toFixed(2):'—'}</b></div>
+      </div>
+      <div class="item-bar-track"><div class="item-bar" style="width:${barW}%"></div></div>
+    </div>`;
+  }).join('');
+
+  const insightsHtml = gerarInsights(r).map(([tipo,texto])=>{
+    const ico = {ok:'✓',alerta:'⚠',info:'•'}[tipo];
+    return `<div class="ins ${tipo}"><b class="ico">${ico}</b><span>${texto}</span></div>`;
+  }).join('');
+
+  const view = document.getElementById('report-view');
+  view.innerHTML = `
+    <div class="card" style="border-color:var(--gold)">
+      <div class="stitle">📊 Relatório — ${meta.municipio} · ${n1(r.area)} ha · Safra ${meta.safra}</div>
+      <div class="kgrid">
+        <div class="kcard"><div class="klbl">Custo Total</div><div class="kval">${brl(r.custo_total_rha)}</div><div class="ksub">/ha</div></div>
+        <div class="kcard"><div class="klbl">Custo / Saca</div><div class="kval">${brl(r.custo_sc_total)}</div><div class="ksub">R$/sc</div></div>
+        <div class="kcard"><div class="klbl">Receita</div><div class="kval">${brl(r.receita_rha)}</div><div class="ksub">${n1(r.produtividade)} sc/ha</div></div>
+        <div class="kcard"><div class="klbl">Margem Total</div><div class="kval ${mc}">${brl(r.margem_total_rha)}</div><div class="ksub">/ha</div></div>
+        <div class="kcard"><div class="klbl">P. Equilíbrio Total</div><div class="kval gold">${n1(r.ponto_eq_total)} sc/ha</div><div class="ksub">cobre custo + capital</div></div>
+        <div class="kcard"><div class="klbl">Lucratividade</div><div class="kval ${mc}">${(r.lucratividade_pct*100).toFixed(1)}%</div><div class="ksub">s/ receita bruta</div></div>
+        <div class="kcard"><div class="klbl">Custo Operacional</div><div class="kval">${brl(r.custo_operacional_rha)}</div><div class="ksub">/ha</div></div>
+        <div class="kcard"><div class="klbl">Margem Operacional</div><div class="kval ${mo}">${brl(r.margem_operacional_rha)}</div><div class="ksub">/ha</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stitle">🔎 Diagnóstico</div>
+      ${insightsHtml}
+    </div>
+
+    <div class="card">
+      <div class="stitle">🍩 Composição do Custo</div>
+      <div class="donut-wrap">${donut}<div class="legend">${legend}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="stitle">📈 Comparativo com a Média Aprosoja/MS</div>
+      ${cmpRows}
+    </div>
+
+    <div class="card">
+      <div class="stitle">📋 Detalhamento por Item</div>
+      ${itemRows}
+    </div>
+
+    <button class="bprimary" onclick="novoCalculo()">🔄 Novo Cálculo</button>
+    <button class="bsecondary" style="width:100%;margin-top:8px" onclick="compartilharResultado()">📤 Compartilhar Resultado</button>
+  `;
+  document.getElementById('wizard').style.display='none';
+  view.style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+let ultimoResultado=null, ultimaMeta=null;
+async function calcularESalvar(){
+  const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF);
+  const meta = {produtor:lavoura.produtor, municipio:lavoura.municipio, safra:REF.safra, data:new Date().toISOString().split('T')[0]};
+  ultimoResultado=r; ultimaMeta=meta;
+  renderRelatorio(r, meta);
+
+  const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), resultado:r, safra:REF.safra, cultura:'Soja',
+    status:'pending', created_at:new Date().toISOString()};
+  await dbAdd(entry);
+  atualizarBadge();
+  showToast(online?'Salvo. Sincronizando...':'Salvo no dispositivo. Sincronizará ao conectar.');
+  if(online) syncPendentes();
+}
+
+function novoCalculo(){
+  valores={}; CAMPOS_TOTAL.forEach(k=>valores[k]=0); CAMPOS_POR_HA.forEach(k=>valores[k]=0);
+  lavoura={produtor:'',municipio:'',area:0,produtividade:REF?0:0,preco:REF?REF.preco_medio:0};
+  stepIdx=0;
+  document.getElementById('report-view').style.display='none';
+  document.getElementById('report-view').innerHTML='';
+  document.getElementById('wizard').style.display='block';
+  renderStep();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function compartilharResultado(){
+  if(!ultimoResultado) return;
+  const r=ultimoResultado, meta=ultimaMeta;
+  const texto = `📊 Custo de Produção — ${meta.municipio} (Safra ${meta.safra})\n`+
+    `Custo Total: ${brl(r.custo_total_rha)}/ha\n`+
+    `Ponto de Equilíbrio: ${n1(r.ponto_eq_total)} sc/ha\n`+
+    `Margem Total: ${brl(r.margem_total_rha)}/ha\n`+
+    `Lucratividade: ${(r.lucratividade_pct*100).toFixed(1)}%\n\n`+
+    `Calculado com a Calculadora de Custo e Margem — Aprosoja/MS`;
+  if(navigator.share){ try{ await navigator.share({text:texto}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  if(navigator.clipboard) navigator.clipboard.writeText(texto).then(()=>showToast('Resultado copiado.'));
+}
+
+// ─── IndexedDB ────────────────────────────────────────────────────────────────
+function openDB(){
+  return new Promise((res,rej)=>{
+    const req = indexedDB.open('AprosojaCusto',1);
+    req.onupgradeneeded = e=>{
+      const s = e.target.result.createObjectStore('entries',{keyPath:'id',autoIncrement:true});
+      s.createIndex('status','status',{unique:false});
+    };
+    req.onsuccess = e=>{ db=e.target.result; res(db); };
+    req.onerror = ()=>rej(req.error);
+  });
+}
+const dbAll = ()=>new Promise((r,j)=>{const q=db.transaction('entries','readonly').objectStore('entries').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+const dbAdd = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').add(e);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+const dbPut = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').put(e);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+
+// ─── CONFIG (sem token embutido por padrão — configure em Ajustes ou por link) ─
+const getCfg = ()=>({token:localStorage.getItem('gh_token_custo')||'', repo:localStorage.getItem('gh_repo_custo')||REPO_DEFAULT});
+(function(){
+  let raw='';
+  const m=location.search.match(/[?&]cfg=([^&]+)/);
+  if(m) raw=m[1]; else if(location.hash.startsWith('#cfg=')) raw=location.hash.slice(5);
+  if(!raw) return;
+  try{
+    raw=decodeURIComponent(raw).replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/').replace(/[\r\n\t]/g,'');
+    while(raw.length%4) raw+='=';
+    const [t,r]=atob(raw).split('|');
+    if(t) localStorage.setItem('gh_token_custo',t.trim());
+    if(r) localStorage.setItem('gh_repo_custo',r.trim());
+    history.replaceState(null,'',location.pathname);
+    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
+  }catch(e){ console.error('Link de configuração inválido',e); }
+})();
+function salvarCfg(){
+  const t=document.getElementById('cfg-token').value.trim();
+  const r=document.getElementById('cfg-repo').value.trim();
+  if(!r){ showToast('Preencha o repositório',1); return; }
+  if(t) localStorage.setItem('gh_token_custo',t);
+  localStorage.setItem('gh_repo_custo',r);
+  if(!getCfg().token){ showToast('Informe o token',1); return; }
+  showToast('Configurações salvas.');
+  carregarCfg();
+}
+function carregarCfg(){
+  const {token,repo}=getCfg();
+  const tEl=document.getElementById('cfg-token');
+  tEl.value=''; tEl.placeholder=token?'Token configurado — digite aqui só para trocar':'github_pat_xxxxxxxxxxxxxxxxxxxx';
+  document.getElementById('cfg-repo').value=repo;
+}
+
+// ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
+async function ghGet(token,repo,path){
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+    {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+  if(r.status===404) return {sha:null,dados:[]};
+  if(!r.ok) throw new Error(`GitHub ${r.status}`);
+  const j=await r.json();
+  const bin=atob(j.content.replace(/\n/g,''));
+  const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+  return {sha:j.sha, dados:JSON.parse(new TextDecoder('utf-8').decode(bytes))};
+}
+async function ghPut(token,repo,path,dados,sha){
+  const body={message:`Coleta de custos campo — ${new Date().toISOString().split('T')[0]}`,
+    content:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))};
+  if(sha) body.sha=sha;
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+    {method:'PUT',headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+     body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.message||`GitHub ${r.status}`); }
+}
+async function syncPendentes(){
+  const {token,repo}=getCfg();
+  if(!token||!repo) return;
+  const todas=await dbAll();
+  const pend=todas.filter(e=>e.status==='pending');
+  if(!pend.length) return;
+  try{
+    const {sha,dados}=await ghGet(token,repo,CAMINHO_DADOS);
+    const novos=pend.map(({id,status,created_at,...rest})=>rest);
+    await ghPut(token,repo,CAMINHO_DADOS,[...dados,...novos],sha);
+    for(const e of pend) await dbPut({...e,status:'synced',synced_at:new Date().toISOString()});
+    atualizarBadge();
+    if(document.getElementById('page-pending').classList.contains('active')){ renderPending(); atualizarSbar(); }
+    showToast(`${pend.length} cálculo(s) sincronizado(s).`);
+  }catch(err){ console.error(err); }
+}
+async function syncAgora(){
+  const btn=document.getElementById('bsync');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Sincronizando...';
+  await syncPendentes();
+  btn.disabled=false; btn.innerHTML='Sincronizar agora';
+}
+
+// ─── PENDENTES (cálculos salvos) ───────────────────────────────────────────────
+async function atualizarBadge(){
+  const todas=await dbAll();
+  const p=todas.filter(e=>e.status==='pending').length;
+  const b=document.getElementById('bcnt');
+  b.textContent=p; b.style.display=p?'inline-block':'none';
+}
+async function atualizarSbar(){
+  const {token,repo}=getCfg();
+  const todas=await dbAll();
+  const p=todas.filter(e=>e.status==='pending').length;
+  const tx=document.getElementById('sbar-txt'), bs=document.getElementById('bsync');
+  if(!token||!repo){ tx.textContent='Configure a conexão em Ajustes para sincronizar.'; bs.style.display='none'; return; }
+  if(!online&&p){ tx.textContent=`Offline — ${p} cálculo(s) aguardando conexão`; bs.style.display='none'; }
+  else if(p){ tx.textContent=`Online — ${p} cálculo(s) prontos para sincronizar`; bs.style.display='block'; }
+  else{ tx.textContent='Todos os cálculos estão sincronizados'; bs.style.display='none'; }
+}
+async function renderPending(){
+  const todas=(await dbAll()).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  const el=document.getElementById('elist');
+  document.getElementById('empty-state').style.display = todas.length?'none':'block';
+  el.innerHTML = todas.map(e=>{
+    const r=e.resultado||{};
+    const badge = e.status==='pending' ? '<span class="badge bpend">Pendente</span>' : '<span class="badge bsync2">Sincronizado</span>';
+    return `
+    <div class="ecard" onclick='reabrirCalculo(${e.id})'>
+      <div class="ehead"><span class="emun">${e.municipio||'—'}</span>${badge}</div>
+      <div class="edet">${e.produtor||''} · ${n1(e.area)} ha · Custo total: ${brl(r.custo_total_rha||0)}/ha</div>
+    </div>`;
+  }).join('');
+}
+async function reabrirCalculo(id){
+  const todas=await dbAll();
+  const e = todas.find(x=>x.id===id);
+  if(!e||!e.resultado) return;
+  ultimoResultado=e.resultado; ultimaMeta={produtor:e.produtor,municipio:e.municipio,safra:e.safra,data:e.created_at};
+  showPage('calc');
+  renderRelatorio(e.resultado, ultimaMeta);
+}
+
+// ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+function showPage(p){
+  ['calc','pending','share','settings'].forEach(x=>{
+    document.getElementById('page-'+x).classList.toggle('active', x===p);
+    const nb=document.getElementById('nav-'+x);
+    if(nb) nb.classList.toggle('active', x===p);
+  });
+  if(p==='pending'){ renderPending(); atualizarSbar(); }
+  if(p==='settings') carregarCfg();
+  if(p==='share'){
+    document.getElementById('share-link').textContent = APP_LINK;
+    document.getElementById('about-safra').textContent = REF?REF.safra:'—';
+  }
+}
+
+// ─── COMPARTILHAR O APP ─────────────────────────────────────────────────────────
+const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/';
+const SHARE_TEXT=`🧮 Calcule o custo de produção da sua lavoura de soja!\nDescubra a composição do seu custo, compare com a média do estado, veja o ponto de equilíbrio e a margem — tudo em minutos, direto do celular.\nAcesse agora:\n${APP_LINK}\n\nAplicativo criado e publicado pela Aprosoja/MS.`;
+async function compartilharApp(){
+  if(navigator.share){ try{ await navigator.share({text:SHARE_TEXT}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  copiarLink();
+}
+function copiarLink(){
+  const fb=()=>{ const ta=document.createElement('textarea'); ta.value=APP_LINK; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Link copiado.'); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(APP_LINK).then(()=>showToast('Link copiado.')).catch(fb);
+  else fb();
+}
+
+// ─── AJUSTES ESCONDIDOS (7 toques no logo) ─────────────────────────────────────
+let _hTap=0,_hTapT;
+document.querySelector('.header').addEventListener('click',()=>{
+  clearTimeout(_hTapT); _hTapT=setTimeout(()=>_hTap=0,2000);
+  if(++_hTap>=7){ _hTap=0; showPage('settings'); showToast('Ajustes abertos.'); }
+});
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let _tt;
+function showToast(m,err=0){
+  const t=document.getElementById('toast');
+  t.textContent=m; t.className='toast show'+(err?' err2':'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.className='toast',3200);
+}
+
+// ─── ONLINE/OFFLINE ───────────────────────────────────────────────────────────
+function setOnline(v){
+  online=v;
+  document.getElementById('dot').className='dot'+(v?' on':'');
+  if(v){
+    syncPendentes();
+    if(document.getElementById('page-pending').classList.contains('active')) atualizarSbar();
+  }
+}
+window.addEventListener('online', ()=>setOnline(true));
+window.addEventListener('offline',()=>setOnline(false));
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{ reg.update().catch(()=>{}); }).catch(console.error);
+  let _swReload=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReload) return; _swReload=true; location.reload(); });
+}
+
+// ─── SPLASH ───────────────────────────────────────────────────────────────────
+setTimeout(()=>{
+  const s=document.getElementById('splash');
+  s.classList.add('fade');
+  setTimeout(()=>s.style.display='none', 500);
+}, 1800);
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async function init(){
+  await openDB();
+  await carregarReferencia();
+  lavoura.preco = REF ? REF.preco_medio : 0;
+  renderStep();
+  setOnline(navigator.onLine);
+  atualizarBadge();
+})();
+</script>
+</body>
+</html>
