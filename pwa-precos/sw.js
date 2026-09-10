@@ -1,4 +1,4 @@
-const CACHE = 'aprosoja-precos-v30';
+const CACHE = 'aprosoja-precos-v31';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './qr-app.png'];
 
 self.addEventListener('install', e => {
@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('api.github.com')) return;
+  if (e.request.url.includes('api.github.com') || e.request.url.includes('.up.railway.app')) return;
 
   // Página: network-first, senão as atualizações do app nunca chegam a quem
   // já instalou (o cache antigo era servido para sempre — inclusive a versão

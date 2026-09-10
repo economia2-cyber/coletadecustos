@@ -435,45 +435,14 @@ const dbPut = e => new Promise((r,j)=>{const q=db.transaction('entries','readwri
 const dbDel = id=> new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').delete(id);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// Os DADOS ficam no repositório privado 'coletadepreco'; o público só hospeda a
-// página. A chave 'gh_repo_precos' é própria deste app — 'gh_repo' pertence ao
-// app de Custos, que divide o mesmo domínio (localStorage compartilhado).
+// A sincronização passa por um proxy (servidor próprio) que guarda o token do
+// GitHub — nenhum token fica no navegador do produtor nem no código público.
+// (Antes havia um token embutido aqui como fallback — é exatamente esse tipo
+// de segredo em repositório público que o GitHub detecta e revoga sozinho,
+// derrubando a sincronização de todo mundo sem aviso. Removido.)
+const PROXY_URL = 'https://coleta-precos-proxy-production.up.railway.app';
 const REPO_DEFAULT='economia2-cyber/coletadepreco';
-const getCfg = () => ({token:localStorage.getItem('gh_token')||'', repo:localStorage.getItem('gh_repo_precos')||REPO_DEFAULT});
-
-// Link de configuração: aceita index.html?cfg=BASE64(token|repo) e index.html#cfg=...
-// Salva no localStorage e limpa o endereço para o token não ficar visível/no histórico.
-// A decodificação é tolerante: aceita base64url e conserta '+' virando espaço ou
-// '=' final removido por aplicativos de mensagem.
-(function(){
-  let raw='';
-  const m=location.search.match(/[?&]cfg=([^&]+)/);
-  if(m) raw=m[1];
-  else if(location.hash.startsWith('#cfg=')) raw=location.hash.slice(5);
-  if(!raw) return;
-  try{
-    raw=decodeURIComponent(raw).replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/').replace(/[\r\n\t]/g,'');
-    while(raw.length%4) raw+='=';
-    const [t,r]=atob(raw).split('|');
-    if(t) localStorage.setItem('gh_token',t.trim());
-    if(r) localStorage.setItem('gh_repo_precos',r.trim());
-    history.replaceState(null,'',location.pathname);
-    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
-  }catch(e){console.error('Link de configuração inválido',e);}
-})();
-
-// Configuração padrão embutida (codificada) — permite que o link público
-// funcione sem nenhuma configuração manual. Um link ?cfg= ou o campo em
-// Ajustes continuam tendo prioridade sobre este valor.
-const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwb2g2Rjd4N3NRd2k1X05KSGF1S3pvT3VsRkxlZExtZWZwSVJaeklmdFNjSmZGN1hNNjdRakZ4eG9OVExVNUtWR1YwZ2Y4MGV0fGVjb25vbWlhMi1jeWJlci9jb2xldGFkZXByZWNv';
-(function(){
-  if(localStorage.getItem('gh_repo_precos')||CFG_EMBED.indexOf('__')===0) return;
-  try{
-    const [t,r]=atob(CFG_EMBED).split('|');
-    if(t&&!localStorage.getItem('gh_token')) localStorage.setItem('gh_token',t.trim());
-    if(r) localStorage.setItem('gh_repo_precos',r.trim());
-  }catch(e){console.error('Configuração embutida inválida',e);}
-})();
+const getCfg = () => ({token:localStorage.getItem('gh_token')||'via-proxy', repo:localStorage.getItem('gh_repo_precos')||REPO_DEFAULT});
 
 function salvarCfg(){
   const t=document.getElementById('cfg-token').value.trim();
@@ -735,12 +704,12 @@ function mostrarComparativo(mun,cult,preco,pack,offlineCache){
   el.scrollIntoView({behavior:'smooth',block:'end'});
 }
 
-// ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
+// ─── SYNC GITHUB (via proxy) ────────────────────────────────────────────────
 async function ghGet(token,repo,path){
-  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
-    {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+  const r=await fetch(`${PROXY_URL}?path=${encodeURIComponent(path)}`,
+    {headers:{'Accept':'application/vnd.github.v3+json'}});
   if(r.status===404) return {sha:null,dados:[]};
-  if(!r.ok) throw new Error(`GitHub ${r.status}`);
+  if(!r.ok) throw new Error(`Proxy ${r.status}`);
   const j=await r.json();
   // atob devolve bytes crus — é preciso decodificar UTF-8, senão os acentos corrompem a cada sync
   const bin=atob(j.content.replace(/\n/g,''));
@@ -752,11 +721,10 @@ async function ghPut(token,repo,path,dados,sha){
   const body={message:`Coleta de preços campo — ${new Date().toISOString().split('T')[0]}`,
     content:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))};
   if(sha) body.sha=sha;
-  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
-    {method:'PUT',headers:{'Authorization':`token ${token}`,
-     'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+  const r=await fetch(`${PROXY_URL}?path=${encodeURIComponent(path)}`,
+    {method:'PUT',headers:{'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
      body:JSON.stringify(body)});
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||`GitHub ${r.status}`);}
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||`Proxy ${r.status}`);}
 }
 
 async function syncPendentes(){
