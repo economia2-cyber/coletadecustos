@@ -20,7 +20,7 @@
   <meta name="twitter:card" content="summary">
 
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="./icon-192.png">
+  <link rel="icon" href="./favicon-aprosoja.png">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     :root{
@@ -37,8 +37,8 @@
     body{min-height:100vh;padding-bottom:calc(74px + env(safe-area-inset-bottom,0px))}
 
     /* ── Header ── */
-    .header{background:var(--gd);padding:12px 16px;display:flex;align-items:center;
-      justify-content:center;position:sticky;top:0;z-index:200;gap:10px;
+    .header{background:var(--gd);padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;
+      display:flex;align-items:center;justify-content:center;position:sticky;top:0;z-index:200;gap:10px;
       border-bottom:3px solid var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.15)}
     .header img{height:36px;max-width:190px;object-fit:contain}
     .dot{position:absolute;right:16px;width:8px;height:8px;border-radius:50%;
@@ -46,7 +46,9 @@
     .dot.on{background:#4cca82}
 
     /* ── Pages ── */
-    .page{display:none;padding:14px 14px 10px}
+    /* Largura máxima centralizada: em telas de tablet o conteúdo não estica
+       de ponta a ponta, mantendo linhas de texto e cards em tamanho confortável. */
+    .page{display:none;padding:14px 14px 10px;max-width:680px;margin:0 auto}
     .page.active{display:block}
     .ptitle{font-size:1.15rem;font-weight:800;letter-spacing:.5px;margin-bottom:2px;color:var(--gd)}
     .psub{font-size:.75rem;color:var(--tl);margin-bottom:14px;line-height:1.4}
@@ -56,9 +58,12 @@
     .progress-track{height:5px;background:var(--bdl);border-radius:4px;overflow:hidden}
     .progress-fill{height:100%;background:linear-gradient(90deg,var(--gl),var(--gold));
       border-radius:4px;transition:width .3s ease}
-    .progress-lbl{display:flex;justify-content:space-between;margin-top:6px;
+    .progress-lbl{display:flex;justify-content:space-between;gap:8px;margin-top:6px;
       font-size:.68rem;color:var(--tl);font-weight:600}
     .progress-lbl b{color:var(--gd)}
+    .progress-lbl span:first-child{flex-shrink:0}
+    .progress-lbl span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;text-align:right}
 
     /* ── Cards / Sections ── */
     .card{background:linear-gradient(145deg,#ffffff 0%,var(--cream2) 100%);
@@ -73,9 +78,15 @@
     .fg:last-child{margin-bottom:0}
     label{display:block;font-size:.76rem;color:var(--tm);margin-bottom:4px;font-weight:600}
     .fhint{font-size:.66rem;color:var(--tx);margin-top:3px}
+    /* Linha de "Outros Custos": quebra pra segunda linha em telas estreitas
+       em vez de espremer os campos e o botão numa única fileira. */
+    .oc-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+    .oc-desc{flex:2 1 140px}
+    .oc-valor{flex:1 1 90px}
+    .oc-remove{flex:0 0 auto;padding:11px 14px}
     input,select,textarea{width:100%;padding:11px 12px;background:#ffffff;
       border:1.5px solid var(--bd);border-radius:9px;color:var(--td);
-      font-size:.92rem;outline:none;-webkit-appearance:none;font-family:inherit}
+      font-size:1rem;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit}
     input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,166,70,.15)}
     input[type=number]{font-variant-numeric:tabular-nums}
     select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a7a' stroke-width='1.6' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
@@ -103,6 +114,7 @@
 
     /* ── KPI grid ── */
     .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media (min-width:480px){ .kgrid{grid-template-columns:repeat(4,1fr)} }
     .kcard{background:linear-gradient(145deg,#ffffff,var(--cream2));border:1px solid var(--bd);
       border-radius:10px;padding:12px 10px;text-align:center}
     .klbl{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
@@ -116,7 +128,6 @@
     /* ── Insights ── */
     .ins{border-left:3px solid var(--tl);background:var(--cream2);border-radius:8px;
       padding:9px 11px;margin-bottom:7px;font-size:.82rem;line-height:1.4;display:flex;gap:8px}
-    .ins b.ico{flex-shrink:0}
     .ins.ok{border-color:var(--up);background:#eef6ee;color:#0b3d2e}
     .ins.alerta{border-color:var(--dn);background:#fbeeec;color:#5c2018}
     .ins.info{border-color:var(--tl);background:var(--cream2);color:var(--tm)}
@@ -179,14 +190,16 @@
       margin-bottom:14px;line-height:1.5}
 
     /* ── Bottom nav ── */
+    /* Barra de fundo fica full-bleed; a linha de botões é que centraliza e
+       limita a largura em telas de tablet, pra não esticar demais. */
     .bnav{position:fixed;bottom:0;left:0;right:0;background:#ffffff;
-      border-top:1px solid var(--bd);display:flex;z-index:200;
+      border-top:1px solid var(--bd);z-index:200;
       padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+    .bnav-inner{display:flex;max-width:680px;margin:0 auto}
     .nbtn{flex:1;padding:12px 6px 10px;background:transparent;border:none;
       border-top:2.5px solid transparent;color:var(--tl);font-size:.66rem;
       font-weight:700;letter-spacing:.4px;cursor:pointer;position:relative;
       display:flex;flex-direction:column;align-items:center;gap:3px}
-    .nbtn .ic{font-size:1.15rem}
     .nbtn.active{color:var(--gd);border-top-color:var(--gold)}
     .bcnt{position:absolute;top:2px;left:50%;margin-left:10px;
       background:var(--dn);color:#fff;font-size:.56rem;padding:1px 4px;
@@ -218,17 +231,58 @@
     #splash img{width:66%;max-width:260px;object-fit:contain}
     #splash .splash-sub{color:var(--gold-pale);font-size:.8rem;letter-spacing:1px;text-align:center;padding:0 30px}
     #splash.fade{opacity:0;pointer-events:none}
+
+    /* ── Impressão / PDF do relatório ── */
+    #print-header{display:none}
+    .pdf-only{display:none}
+    .pdf-sec{margin-bottom:16px}
+    .pdf-h2{font-size:1rem;font-weight:800;color:var(--gd);border-bottom:2px solid var(--gold);
+      padding-bottom:5px;margin:0 0 8px;break-after:avoid}
+    .pdf-lead{font-size:.92rem;line-height:1.7;color:var(--td);text-align:justify;margin-bottom:10px}
+    .pdf-p{font-size:.82rem;line-height:1.65;color:var(--tm);text-align:justify;margin-bottom:9px}
+    .pdf-table{width:100%;border-collapse:collapse;font-size:.76rem;margin-bottom:10px}
+    .pdf-table th,.pdf-table td{border:1px solid var(--bd);padding:5px 8px;text-align:left}
+    .pdf-table th{background:var(--cream2);color:var(--gd);font-weight:700;font-size:.68rem;
+      text-transform:uppercase;letter-spacing:.4px}
+    .pdf-table td.num,.pdf-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .pdf-table tr{break-inside:avoid}
+    .pdf-table tfoot td{font-weight:800;color:var(--gd);background:var(--cream2)}
+    .pdf-cover-sub{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);
+      font-weight:700;margin-bottom:2px}
+    @media print{
+      *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      @page{margin:12mm}
+      body{padding-bottom:0;background:#fff}
+      .page{max-width:none;margin:0}
+      .header,.bnav,.toast,#splash,.no-print,.footnote{display:none!important}
+      #wizard{display:none!important}
+      #report-view{display:block!important}
+      .pdf-only{display:block!important}
+      #print-header{display:block;margin-bottom:18px}
+      #print-header .ph-top{display:flex;align-items:center;gap:12px;border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:10px}
+      #print-header img{height:40px;object-fit:contain}
+      #print-header .ph-title{font-size:1.3rem;font-weight:800;color:var(--gd)}
+      #print-header .ph-sub{font-size:.75rem;color:var(--tl)}
+      #print-header .ph-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:.72rem;color:var(--tm);margin-bottom:4px}
+      #print-header .ph-meta b{display:block;color:var(--gd);font-size:.85rem}
+      #print-footer{display:block!important;margin-top:16px;padding-top:10px;border-top:1px solid var(--bdl);
+        font-size:.66rem;color:var(--tx);text-align:center}
+      #print-closing{display:flex!important;justify-content:center;align-items:center;
+        background:var(--cream);padding:26px 0;margin-top:18px}
+      #print-closing img{height:46px;object-fit:contain}
+    }
+    #print-footer,#print-closing{display:none}
   </style>
 </head>
 <body>
 
 <div id="splash">
-  <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+  <img src="./aprosoja-logo-branco.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
   <div class="splash-sub">Calculadora de Custo e Margem</div>
 </div>
 
 <div class="header">
-  <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+  <img src="./aprosoja-logo-branco.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
   <div id="dot" class="dot"></div>
 </div>
 
@@ -236,8 +290,8 @@
 <div id="page-calc" class="page active">
 
   <div id="wizard">
-    <div class="ptitle">CUSTO DE PRODUÇÃO — SOJA</div>
-    <div class="psub" id="step-sub">Preencha os custos reais da sua lavoura, etapa por etapa</div>
+    <div class="ptitle">CUSTO DE PRODUÇÃO - SOJA</div>
+    <div class="psub" id="step-sub">Receba um relatório completo do seu custo, entenda sua margem e compare com a média do estado.</div>
 
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:14%"></div></div>
@@ -248,15 +302,15 @@
     <div class="card" id="step-content"></div>
 
     <div class="steprow">
-      <button class="bsecondary" id="btn-back" onclick="stepBack()" style="display:none">◂ Voltar</button>
-      <button class="bprimary" id="btn-next" onclick="stepNext()">Próximo ▸</button>
+      <button class="bsecondary" id="btn-back" onclick="stepBack()" style="display:none">Voltar</button>
+      <button class="bprimary" id="btn-next" onclick="stepNext()">Próximo</button>
     </div>
   </div>
 
   <div id="report-view" style="display:none"></div>
 
   <div class="footnote">Os dados informados alimentam a base de custos regionais da Aprosoja/MS,
-    usada apenas de forma agregada — nenhuma informação individual é divulgada.</div>
+    usada apenas de forma agregada. Nenhuma informação individual é divulgada.</div>
 </div>
 
 <!-- ════════════════ PENDENTES ════════════════ -->
@@ -282,7 +336,7 @@
   <div class="stitle">SOBRE</div>
   <p style="font-size:.82rem;color:var(--tm);line-height:1.6">
     Este app calcula o custo de produção da sua lavoura de soja, compara com a média
-    Aprosoja/MS e mostra o ponto de equilíbrio e a margem — tudo funciona offline e
+    Aprosoja/MS e mostra o ponto de equilíbrio e a margem. Tudo funciona offline e
     sincroniza quando você tiver conexão.
   </p>
   <p style="font-size:.7rem;color:var(--tx);margin-top:10px">Safra de referência: <b id="about-safra" style="color:var(--gd)"></b></p>
@@ -292,8 +346,9 @@
 <div id="page-settings" class="page">
   <div class="ptitle">AJUSTES</div>
   <div class="psub">Conexão para sincronização dos dados</div>
-  <div class="snote">O token de acesso fica salvo <b>apenas neste dispositivo</b> e nunca é exibido.
-    Peça o link de configuração à Aprosoja/MS, ou preencha manualmente abaixo.</div>
+  <div class="snote">O app já vem configurado sozinho, normalmente você não precisa mexer aqui.
+    O token de acesso fica salvo <b>apenas neste dispositivo</b> e nunca é exibido; use os campos
+    abaixo só para trocar a conexão.</div>
   <div class="fg"><label>GitHub Token (Personal Access Token)</label>
     <input type="password" id="cfg-token" placeholder="github_pat_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
   <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
@@ -305,9 +360,11 @@
 
 <!-- Bottom nav -->
 <nav class="bnav">
-  <button class="nbtn active" id="nav-calc" onclick="showPage('calc')"><span class="ic">🧮</span>Calcular</button>
-  <button class="nbtn" id="nav-pending" onclick="showPage('pending')"><span class="ic">📋</span>Salvos<span id="bcnt" class="bcnt">0</span></button>
-  <button class="nbtn" id="nav-share" onclick="showPage('share')"><span class="ic">📤</span>Compartilhar</button>
+  <div class="bnav-inner">
+    <button class="nbtn active" id="nav-calc" onclick="showPage('calc')">Calcular</button>
+    <button class="nbtn" id="nav-pending" onclick="showPage('pending')">Salvos<span id="bcnt" class="bcnt">0</span></button>
+    <button class="nbtn" id="nav-share" onclick="showPage('share')">Compartilhar</button>
+  </div>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -347,7 +404,70 @@ const GRUPOS = {
   'Renda de Fatores': ['renda_fatores'],
 };
 const CORES_GRUPO = ['#0b3d2e','#165c3a','#1e7a4a','#c8a646','#3d7a9e','#8a5a44','#6b6b3e','#a3455c'];
+const ITEM_GRUPO = {};
+Object.entries(GRUPOS).forEach(([nome,chaves])=>chaves.forEach(k=>ITEM_GRUPO[k]=nome));
 const LIMIAR_ALERTA = 0.10;
+
+// ─── COR POR ITEM (matiz do grupo + variação de luminosidade) ──────────────────
+// Mantém as 8 cores categóricas fixas do app (uma por grupo) e usa variação de
+// luminosidade dentro da mesma família de cor para diferenciar os itens de um
+// grupo, assim dá pra detalhar até o item individual sem inventar tons novos
+// nem cair numa fatia genérica "Outros".
+function hexParaHsl(hex){
+  const r=parseInt(hex.slice(1,3),16)/255, g=parseInt(hex.slice(3,5),16)/255, b=parseInt(hex.slice(5,7),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b);
+  let h=0,s=0; const l=(max+min)/2;
+  const d=max-min;
+  if(d!==0){
+    s = l>0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max){
+      case r: h=(g-b)/d+(g<b?6:0); break;
+      case g: h=(b-r)/d+2; break;
+      default: h=(r-g)/d+4;
+    }
+    h/=6;
+  }
+  return [h*360, s*100, l*100];
+}
+function hslParaHex(h,s,l){
+  h=((h%360)+360)%360/360; s/=100; l/=100;
+  const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1;
+    if(t<1/6) return p+(q-p)*6*t; if(t<1/2) return q;
+    if(t<2/3) return p+(q-p)*(2/3-t)*6; return p; };
+  let r,g,b;
+  if(s===0){ r=g=b=l; }
+  else{
+    const q = l<0.5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  const toHex=x=>Math.round(Math.min(1,Math.max(0,x))*255).toString(16).padStart(2,'0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+// Sequência de van der Corput: espalha os passos de luminosidade fora de ordem
+// (0, 1/2, 1/4, 3/4, 1/8...) para que itens VIZINHOS no anel do donut fiquem em
+// pontos bem distantes da faixa, em vez de uma rampa 0,1,2,3... onde cada fatia
+// fica quase idêntica à fatia ao lado.
+function vanDerCorput(i, bits){
+  let v=0;
+  for(let b=0;b<bits;b++){ if(i&(1<<b)) v|=(1<<(bits-1-b)); }
+  return v/(1<<bits);
+}
+const COR_OUTROS_CUSTOS = '#8a8272'; // cinza neutro: bucket "Outros Custos" (sem categoria/referência fixa)
+function corDoItem(k){
+  const nomeGrupo = ITEM_GRUPO[k];
+  if(!nomeGrupo) return COR_OUTROS_CUSTOS;
+  const nomes = Object.keys(GRUPOS);
+  const corBase = CORES_GRUPO[nomes.indexOf(nomeGrupo)%CORES_GRUPO.length];
+  const chaves = GRUPOS[nomeGrupo];
+  const n = chaves.length;
+  if(n<=1) return corBase;
+  const [h,s] = hexParaHsl(corBase);
+  const L_MIN=20, L_MAX=52; // faixa fixa: mantém contraste contra o fundo claro dos cards
+  const bits = Math.max(1, Math.ceil(Math.log2(n)));
+  const t = vanDerCorput(chaves.indexOf(k), bits);
+  const l = L_MIN + t*(L_MAX-L_MIN);
+  return hslParaHex(h, Math.max(45,s), l);
+}
 
 const MUNICIPIOS_MS = ['Água Clara','Alcinópolis','Amambai','Anastácio','Anaurilândia','Angélica',
   'Antônio João','Aparecida do Taboado','Aquidauana','Aral Moreira','Bandeirantes','Bataguassu',
@@ -371,6 +491,7 @@ const STEPS = [
   {id:'maq', nome:'Máquinas, Mão de Obra e Financeiro', campos:['op_maquinas','mao_obra','juros'], modo:'total'},
   {id:'insumos', nome:'Insumos da Lavoura', campos: GRUPOS['Insumos'], modo:'total'},
   {id:'outras', nome:'Outras Despesas', campos: GRUPOS['Outras Despesas'], modo:'total'},
+  {id:'outros_custos', nome:'Outros Custos', tipo:'outros_custos'},
   {id:'fixo', nome:'Custo Fixo', campos:['deprec_benfeit','deprec_maquinas','manut_periodica','encargos_sociais','seguro_capital'], modo:'perha'},
   {id:'oportunidade', nome:'Custo de Oportunidade do Capital', campos:['renda_fatores'], modo:'perha'},
   {id:'revisao', nome:'Revisão e Cálculo', tipo:'revisao'},
@@ -385,6 +506,7 @@ let valores = {};                // valores atuais do formulário
 CAMPOS_TOTAL.forEach(k=>valores[k]=0);
 CAMPOS_POR_HA.forEach(k=>valores[k]=0);
 let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
+let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
 
 // ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
 const brl = (v,dec=2)=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -422,12 +544,16 @@ function linha(rha, custoTotalRha, preco, ref){
     status: status(deltaPct),
   };
 }
-function calcular(valores, area, produtividade, preco, ref){
+function calcular(valores, area, produtividade, preco, ref, outros){
+  outros = outros || [];
   const rha = {};
   CAMPOS_TOTAL.forEach(k=> rha[k] = area ? (valores[k]||0)/area : 0);
   CAMPOS_POR_HA.forEach(k=> rha[k] = valores[k]||0);
 
-  const custoVariavelRha = CAMPOS_CUSTO_VARIAVEL.reduce((s,k)=>s+rha[k],0);
+  const outrosValidos = outros.filter(oc=>oc.valor>0);
+  const outrosTotalRha = area ? outrosValidos.reduce((s,oc)=>s+oc.valor,0)/area : 0;
+
+  const custoVariavelRha = CAMPOS_CUSTO_VARIAVEL.reduce((s,k)=>s+rha[k],0) + outrosTotalRha;
   const custoFixoRha = CAMPOS_CUSTO_FIXO.reduce((s,k)=>s+rha[k],0);
   const custoOperacionalRha = custoVariavelRha + custoFixoRha;
   const rendaFatoresRha = CAMPOS_RENDA_FATORES.reduce((s,k)=>s+rha[k],0);
@@ -445,6 +571,10 @@ function calcular(valores, area, produtividade, preco, ref){
   const refItens = ref.itens;
   const itens = {};
   Object.keys(rha).forEach(k=> itens[k]=linha(rha[k], custoTotalRha, preco, refItens[k]));
+  outrosValidos.forEach((oc,i)=>{
+    const rhaOutro = area ? oc.valor/area : 0;
+    itens['outro_'+i] = {...linha(rhaOutro, custoTotalRha, preco, null), nome: oc.descricao||'Outros Custos'};
+  });
 
   const grupos = {};
   Object.keys(GRUPOS).forEach(nome=>{
@@ -486,33 +616,33 @@ function gerarInsights(r){
   if(ct.delta_pct!==null){
     if(ct.status==='acima'){
       ins.push(['alerta', `Seu custo total é ${(ct.delta_pct*100).toFixed(1)}% maior que a média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha) — isso equivale a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo.`]);
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), o equivalente a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo.`]);
     }else if(ct.status==='abaixo'){
       ins.push(['ok', `Seu custo total está ${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha) — economia de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), uma economia de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
     }else{
       ins.push(['info', `Seu custo total está dentro da faixa da média Aprosoja/MS (${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha).`]);
     }
   }
   const acima = Object.entries(r.grupos).filter(([,g])=>g.status==='acima').sort((a,b)=>b[1].delta_scha-a[1].delta_scha);
   acima.slice(0,3).forEach(([nome,g])=>{
-    ins.push(['alerta', `${nome}: ${brl(g.rha)}/ha — ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha a mais).`]);
+    ins.push(['alerta', `${nome}: ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha a mais).`]);
   });
   const abaixo = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
   abaixo.slice(0,2).forEach(([nome,g])=>{
-    ins.push(['ok', `${nome}: ${brl(g.rha)}/ha — ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+    ins.push(['ok', `${nome}: ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
   });
   const prod=r.produtividade, peqT=r.ponto_eq_total, peqO=r.ponto_eq_operacional, folga=prod-peqT;
   if(folga>=0){
-    ins.push(['ok', `Sua produtividade (${n1(prod)} sc/ha) supera o ponto de equilíbrio total (${n1(peqT)} sc/ha) em ${folga.toFixed(1)} sc/ha — margem positiva mesmo cobrindo o custo de oportunidade do capital.`]);
+    ins.push(['ok', `Sua produtividade (${n1(prod)} sc/ha) supera o ponto de equilíbrio total (${n1(peqT)} sc/ha) em ${folga.toFixed(1)} sc/ha, com margem positiva mesmo cobrindo o custo de oportunidade do capital.`]);
   }else if(prod>=peqO){
-    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${Math.abs(folga).toFixed(1)} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha) — não sobra para remunerar o capital investido.`]);
+    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${Math.abs(folga).toFixed(1)} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha). Não sobra para remunerar o capital investido.`]);
   }else{
-    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha) — a lavoura está operando no prejuízo em caixa.`]);
+    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha). A lavoura está operando no prejuízo em caixa.`]);
   }
   const lp=r.lucratividade_pct*100;
   if(lp>=15) ins.push(['ok', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta.`]);
-  else if(lp>=0) ins.push(['info', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta — margem apertada.`]);
+  else if(lp>=0) ins.push(['info', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta, margem apertada.`]);
   else ins.push(['alerta', `Margem total negativa: ${lp.toFixed(1)}% sobre a receita bruta.`]);
   return ins;
 }
@@ -525,14 +655,14 @@ function renderStep(){
   document.getElementById('step-name').textContent = step.nome;
   document.getElementById('progress-fill').style.width = (((stepIdx+1)/STEPS.length)*100)+'%';
   document.getElementById('btn-back').style.display = stepIdx===0 ? 'none' : 'block';
-  document.getElementById('btn-next').textContent = step.tipo==='revisao' ? '🔍 CALCULAR E SALVAR' : 'Próximo ▸';
+  document.getElementById('btn-next').textContent = step.tipo==='revisao' ? 'CALCULAR E SALVAR' : 'Próximo';
   document.getElementById('errs').innerHTML='';
 
   const c = document.getElementById('step-content');
   if(step.tipo==='lavoura'){
     c.innerHTML = `
-      <div class="stitle">📋 Dados da Lavoura</div>
-      <div class="fg"><label>Produtor / Técnico *</label>
+      <div class="stitle">Dados da Lavoura</div>
+      <div class="fg"><label>Nome</label>
         <input type="text" id="f-produtor" placeholder="Nome completo" value="${lavoura.produtor}"></div>
       <div class="fg"><label>Município *</label>
         <select id="f-municipio">${['<option value="">Selecione...</option>'].concat(
@@ -544,40 +674,55 @@ function renderStep(){
         <input type="number" id="f-produtividade" inputmode="decimal" min="0" step="0.5" placeholder="0" value="${lavoura.produtividade||''}"></div>
       <div class="fg"><label>Preço de venda (R$/sc) *</label>
         <input type="number" id="f-preco" inputmode="decimal" min="0" step="0.5" value="${lavoura.preco||''}">
-        <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'—'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
+        <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'-'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
     `;
   }else if(step.tipo==='revisao'){
-    const gruposHtml = Object.keys(GRUPOS).map(nome=>{
-      const total = GRUPOS[nome].reduce((s,k)=>s+ (step.campos ? 0 : 0),0); // placeholder, recompute below
-      return '';
-    }).join('');
     let totalGeral = 0;
     CAMPOS_TOTAL.forEach(k=>totalGeral += (valores[k]||0));
+    const outrosValidos = outrosCustos.filter(oc=>oc.valor>0);
+    const outrosTotal = outrosValidos.reduce((s,oc)=>s+oc.valor,0);
+    totalGeral += outrosTotal;
     const perHaTotal = CAMPOS_POR_HA.reduce((s,k)=>s+(valores[k]||0)*(lavoura.area||0),0);
     c.innerHTML = `
-      <div class="stitle">🔍 Revise antes de calcular</div>
-      <div class="resumo-row"><span>Produtor</span><b>${lavoura.produtor||'—'}</b></div>
-      <div class="resumo-row"><span>Município</span><b>${lavoura.municipio||'—'}</b></div>
+      <div class="stitle">Revise antes de calcular</div>
+      <div class="resumo-row"><span>Nome</span><b>${lavoura.produtor||'-'}</b></div>
+      <div class="resumo-row"><span>Município</span><b>${lavoura.municipio||'-'}</b></div>
       <div class="resumo-row"><span>Área</span><b>${n1(lavoura.area)} ha</b></div>
       <div class="resumo-row"><span>Produtividade</span><b>${n1(lavoura.produtividade)} sc/ha</b></div>
       <div class="resumo-row"><span>Preço de venda</span><b>${brl(lavoura.preco)}/sc</b></div>
       <hr>
       <div class="resumo-row"><span>Total custo variável (gasto informado)</span><b>${brl(totalGeral)}</b></div>
       <div class="resumo-row"><span>Total custo fixo + oportunidade (estimado)</span><b>${brl(perHaTotal)}</b></div>
-      <div class="fhint" style="margin-top:10px">Toque em "Calcular e Salvar" para ver o relatório completo — a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+      ${outrosValidos.length ? `<div class="resumo-row"><span>Outros custos (${outrosValidos.length} item${outrosValidos.length>1?'s':''})</span><b>${brl(outrosTotal)}</b></div>` : ''}
+      <div class="fhint" style="margin-top:10px">Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+    `;
+  }else if(step.tipo==='outros_custos'){
+    c.innerHTML = `
+      <div class="stitle">Outros Custos</div>
+      <div class="fhint" style="margin-bottom:10px">Adicione aqui custos da sua lavoura que não se encaixam nas categorias anteriores. Campo opcional.</div>
+      ` + outrosCustos.map((oc,i)=>`
+      <div class="fg oc-row">
+        <div class="oc-desc"><label>${i===0?'Descrição':''}</label>
+          <input type="text" id="oc-desc-${i}" placeholder="Ex: Frete extra" value="${oc.descricao||''}"></div>
+        <div class="oc-valor"><label>${i===0?'Valor (R$)':''}</label>
+          <input type="number" id="oc-valor-${i}" inputmode="decimal" min="0" step="50" value="${oc.valor||''}"></div>
+        <button type="button" class="bsecondary oc-remove" onclick="removerOutroCusto(${i})">Remover</button>
+      </div>`).join('') + `
+      <button type="button" class="bsecondary" style="width:100%;margin-top:6px" onclick="adicionarOutroCusto()">Adicionar outro custo</button>
     `;
   }else{
     const modo = step.modo;
-    c.innerHTML = `<div class="stitle">${modo==='total'?'💰':'⚙️'} ${step.nome}</div>` +
+    c.innerHTML = `<div class="stitle">${step.nome}</div>` +
       (modo==='total' ? `<div class="fhint" style="margin-bottom:10px">Informe o valor <b>total gasto na safra</b> (R$) em cada item.</div>`
-                       : `<div class="fhint" style="margin-bottom:10px">Informe em <b>R$/ha</b> — já preenchido com a média Aprosoja/MS; ajuste se souber o seu valor real.</div>`) +
+                       : `<div class="fhint" style="margin-bottom:10px">Informe em <b>R$/ha</b>, já preenchido com a média Aprosoja/MS; ajuste se souber o seu valor real.</div>`) +
       step.campos.map(k=>{
         const refRha = REF.itens[k].rha;
         const val = valores[k];
+        const refHint = modo==='total' ? brl(refRha*(lavoura.area||0)) : brl(refRha)+'/ha';
         return `
         <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':''}</label>
           <input type="number" id="c-${k}" inputmode="decimal" min="0" step="${modo==='perha'?'1':(refRha>300?'500':'50')}" value="${val||(modo==='perha'?refRha.toFixed(2):'')}">
-          <div class="fhint">Média Aprosoja/MS: ${brl(refRha)}/ha</div>
+          <div class="fhint">Média Aprosoja/MS: ${refHint}</div>
         </div>`;
       }).join('');
   }
@@ -594,6 +739,14 @@ function lerCamposEtapa(){
     return true;
   }
   if(step.tipo==='revisao') return true;
+  if(step.tipo==='outros_custos'){
+    outrosCustos.forEach((oc,i)=>{
+      const dEl = document.getElementById('oc-desc-'+i), vEl = document.getElementById('oc-valor-'+i);
+      if(dEl) oc.descricao = dEl.value.trim();
+      if(vEl) oc.valor = parseFloat(vEl.value)||0;
+    });
+    return true;
+  }
   step.campos.forEach(k=>{
     const el = document.getElementById('c-'+k);
     valores[k] = el ? (parseFloat(el.value)||0) : (valores[k]||0);
@@ -605,7 +758,6 @@ function validarEtapa(){
   const step = STEPS[stepIdx];
   const erros=[];
   if(step.tipo==='lavoura'){
-    if(!lavoura.produtor) erros.push('Preencha o campo <b>Produtor / Técnico</b>.');
     if(!lavoura.municipio) erros.push('Selecione o <b>Município</b>.');
     if(lavoura.area<=0) erros.push('<b>Área</b> deve ser maior que zero.');
     if(lavoura.produtividade<=0) erros.push('<b>Produtividade</b> deve ser maior que zero.');
@@ -618,10 +770,23 @@ function validarEtapa(){
   return true;
 }
 
-function stepNext(){
+async function stepNext(){
   lerCamposEtapa();
   if(!validarEtapa()) return;
   const step = STEPS[stepIdx];
+  if(!REF){
+    const btn = document.getElementById('btn-next');
+    btn.disabled = true; const txtOriginal = btn.textContent;
+    btn.innerHTML = '<span class="spin"></span> Carregando...';
+    await carregarReferencia();
+    btn.disabled = false; btn.textContent = txtOriginal;
+    if(!REF){
+      document.getElementById('errs').innerHTML =
+        '<div class="err">Não foi possível carregar os dados de referência da Aprosoja/MS. '+
+        'Verifique sua conexão com a internet e toque em "Próximo" novamente.</div>';
+      return;
+    }
+  }
   if(step.tipo==='revisao'){ calcularESalvar(); return; }
   stepIdx++;
   renderStep();
@@ -633,18 +798,28 @@ function stepBack(){
   renderStep();
   window.scrollTo({top:0,behavior:'smooth'});
 }
+function adicionarOutroCusto(){
+  lerCamposEtapa();
+  outrosCustos.push({descricao:'', valor:0});
+  renderStep();
+}
+function removerOutroCusto(i){
+  lerCamposEtapa();
+  outrosCustos.splice(i,1);
+  renderStep();
+}
 
 // ─── RELATÓRIO ──────────────────────────────────────────────────────────────────
-function svgDonut(grupos, custoTotalRha){
-  const nomes = Object.keys(grupos);
-  const R=54,CX=64,CY=64,STROKE=22,CIRC=2*Math.PI*R;
+function svgDonut(fatias, custoTotalRha){
+  const R=54,CX=64,CY=64,STROKE=22,CIRC=2*Math.PI*R,GAP=1.6;
   let offset=0;
-  const segs = nomes.map((nome,i)=>{
-    const v = Math.max(grupos[nome].rha,0);
+  const segs = fatias.map(f=>{
+    const v = Math.max(f.rha,0);
     const frac = custoTotalRha ? v/custoTotalRha : 0;
     const len = frac*CIRC;
-    const seg = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${CORES_GRUPO[i%CORES_GRUPO.length]}"
-      stroke-width="${STROKE}" stroke-dasharray="${len.toFixed(2)} ${(CIRC-len).toFixed(2)}"
+    const desenho = Math.max(len-GAP,0);
+    const seg = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${f.cor}"
+      stroke-width="${STROKE}" stroke-dasharray="${desenho.toFixed(2)} ${(CIRC-desenho).toFixed(2)}"
       stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${CX} ${CY})"/>`;
     offset += len;
     return seg;
@@ -652,13 +827,180 @@ function svgDonut(grupos, custoTotalRha){
   return `<svg width="128" height="128" viewBox="0 0 128 128">${segs}</svg>`;
 }
 
+// ─── RELATÓRIO TÉCNICO (conteúdo exclusivo do PDF impresso) ─────────────────────
+function montarRelatorioPDF(r, meta, geradoEm){
+  const ct = r.agregados.custo_total, cv = r.agregados.custo_variavel,
+        cf = r.agregados.custo_fixo, co = r.agregados.custo_operacional;
+
+  const posicaoTexto = ct.status==='acima'
+    ? `${(ct.delta_pct*100).toFixed(1)}% acima da média Aprosoja/MS para a safra ${meta.safra}`
+    : ct.status==='abaixo'
+    ? `${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS para a safra ${meta.safra}`
+    : ct.status==='dentro'
+    ? `dentro da faixa da média Aprosoja/MS para a safra ${meta.safra}`
+    : `sem uma referência de comparação disponível para a safra ${meta.safra}`;
+
+  const folga = r.produtividade - r.ponto_eq_total;
+  const situacaoMargem = folga>=0
+    ? `positiva mesmo após cobrir o custo de oportunidade do capital investido`
+    : (r.produtividade>=r.ponto_eq_operacional
+        ? `positiva no caixa, mas insuficiente para remunerar o capital investido`
+        : `negativa mesmo no custo operacional, indicando operação no prejuízo`);
+
+  const secResumo = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">Resumo Executivo</div>
+      <p class="pdf-lead">O custo total de produção da lavoura de soja de <b>${meta.produtor||'produtor não identificado'}</b>,
+      no município de <b>${meta.municipio||'-'}</b> (safra ${meta.safra}), foi calculado em <b>${brl(r.custo_total_rha)}/ha</b>
+      (${brl(r.custo_sc_total)}/sc), ${posicaoTexto}. Considerando produtividade de ${n1(r.produtividade)} sc/ha e preço de
+      venda de ${brl(r.preco)}/sc, a receita bruta estimada é de ${brl(r.receita_rha)}/ha, resultando em margem total de
+      ${brl(r.margem_total_rha)}/ha (${(r.lucratividade_pct*100).toFixed(1)}% sobre a receita bruta), com margem ${situacaoMargem}.</p>
+    </div>`;
+
+  const secDados = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">1. Dados da Lavoura e Premissas</div>
+      <table class="pdf-table"><tbody>
+        <tr><td>Nome</td><td>${meta.produtor||'-'}</td><td>Safra de referência</td><td>${meta.safra}</td></tr>
+        <tr><td>Município</td><td>${meta.municipio||'-'}</td><td>Data do relatório</td><td>${geradoEm}</td></tr>
+        <tr><td>Área cultivada</td><td>${n1(r.area)} ha</td><td>Cultura</td><td>Soja</td></tr>
+        <tr><td>Produtividade</td><td>${n1(r.produtividade)} sc/ha</td><td>Preço de venda</td><td>${brl(r.preco)}/sc</td></tr>
+      </tbody></table>
+    </div>`;
+
+  const secEstrutura = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">2. Estrutura de Custos</div>
+      <p class="pdf-p">O custo de produção é decomposto em custo variável (insumos, operações e despesas ligadas
+      diretamente à safra), custo fixo (depreciações e manutenção de benfeitorias e máquinas) e custo de oportunidade
+      do capital investido (remuneração esperada sobre o capital fixo). A tabela a seguir resume essa estrutura.</p>
+      <table class="pdf-table">
+        <thead><tr><th>Componente</th><th class="num">R$/ha</th><th class="num">% do custo total</th></tr></thead>
+        <tbody>
+          <tr><td>Custo Variável</td><td class="num">${brl(cv.rha)}</td><td class="num">${pct0(cv.pct)}</td></tr>
+          <tr><td>Custo Fixo</td><td class="num">${brl(cf.rha)}</td><td class="num">${pct0(cf.pct)}</td></tr>
+          <tr><td>Custo Operacional (subtotal)</td><td class="num">${brl(co.rha)}</td><td class="num">${pct0(co.pct)}</td></tr>
+          <tr><td>Custo de Oportunidade do Capital</td><td class="num">${brl(r.renda_fatores_rha)}</td>
+            <td class="num">${pct0(r.custo_total_rha?r.renda_fatores_rha/r.custo_total_rha:0)}</td></tr>
+        </tbody>
+        <tfoot><tr><td>Custo Total</td><td class="num">${brl(ct.rha)}</td><td class="num">100%</td></tr></tfoot>
+      </table>
+    </div>`;
+
+  const outrosChaves = Object.keys(r.itens).filter(k=>k.startsWith('outro_'));
+  const outrosTotalRha = outrosChaves.reduce((s,k)=>s+r.itens[k].rha,0);
+  const outrosPct = r.custo_total_rha ? outrosTotalRha/r.custo_total_rha : 0;
+  const linhasGrupos = Object.entries(r.grupos).map(([nome,g])=>({nome, rha:g.rha, pct:g.pct}));
+  if(outrosTotalRha>0) linhasGrupos.push({nome:'Outros Custos', rha:outrosTotalRha, pct:outrosPct});
+  linhasGrupos.sort((a,b)=>b.rha-a.rha);
+  const top3 = linhasGrupos.slice(0,3);
+  const somaTop3 = top3.reduce((s,g)=>s+g.pct,0);
+  const nomesTop3 = top3.map(g=>`${g.nome} (${pct0(g.pct)})`).join(', ');
+
+  const secComposicao = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">3. Composição do Custo por Categoria</div>
+      <p class="pdf-p">As categorias com maior participação no custo total são ${nomesTop3}, que juntas somam
+      ${pct0(somaTop3)} do custo total de produção. A tabela a seguir detalha a participação de cada categoria,
+      da maior para a menor.</p>
+      <table class="pdf-table">
+        <thead><tr><th>Categoria</th><th class="num">R$/ha</th><th class="num">% do custo total</th></tr></thead>
+        <tbody>${linhasGrupos.map(g=>`<tr><td>${g.nome}</td><td class="num">${brl(g.rha)}</td><td class="num">${pct0(g.pct)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  const acimaOrd = Object.entries(r.grupos).filter(([,g])=>g.status==='acima').sort((a,b)=>b[1].delta_scha-a[1].delta_scha);
+  const abaixoOrd = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
+  let textoComparativo = acimaOrd.length
+    ? `A categoria com maior desvio acima da média é <b>${acimaOrd[0][0]}</b>, ${(acimaOrd[0][1].delta_pct*100).toFixed(0)}%
+      acima do valor de referência, o equivalente a ${Math.abs(acimaOrd[0][1].delta_scha).toFixed(1)} sc/ha a mais de custo.`
+    : `Nenhuma categoria está acima da média Aprosoja/MS.`;
+  if(abaixoOrd.length){
+    textoComparativo += ` Em contrapartida, <b>${abaixoOrd[0][0]}</b> está ${Math.abs(abaixoOrd[0][1].delta_pct*100).toFixed(0)}%
+      abaixo da média, uma economia de ${Math.abs(abaixoOrd[0][1].delta_scha).toFixed(1)} sc/ha.`;
+  }
+  const secComparativo = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">4. Comparativo com a Média Aprosoja/MS</div>
+      <p class="pdf-p">${textoComparativo}</p>
+      <table class="pdf-table">
+        <thead><tr><th>Categoria</th><th class="num">Você (R$/ha)</th><th class="num">Média MS (R$/ha)</th>
+          <th class="num">Diferença</th><th>Situação</th></tr></thead>
+        <tbody>${Object.entries(r.grupos).map(([nome,g])=>`
+          <tr><td>${nome}</td><td class="num">${brl(g.rha)}</td><td class="num">${g.ref_rha!=null?brl(g.ref_rha):'-'}</td>
+          <td class="num">${g.delta_pct!=null?(g.delta_pct>=0?'+':'')+(g.delta_pct*100).toFixed(1)+'%':'-'}</td>
+          <td>${({acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'})[g.status]||'-'}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  const secEquilibrio = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">5. Ponto de Equilíbrio e Margem</div>
+      <p class="pdf-p">O ponto de equilíbrio operacional (produtividade mínima para cobrir apenas o custo operacional)
+      é de ${n1(r.ponto_eq_operacional)} sc/ha. Já o ponto de equilíbrio total, que inclui também o custo de
+      oportunidade do capital investido, é de ${n1(r.ponto_eq_total)} sc/ha. Com produtividade real de
+      ${n1(r.produtividade)} sc/ha, a lavoura apresenta margem ${situacaoMargem}${folga>=0?`, com folga de
+      ${folga.toFixed(1)} sc/ha acima do ponto de equilíbrio total`:''}.</p>
+      <table class="pdf-table">
+        <thead><tr><th>Indicador</th><th class="num">Valor</th></tr></thead>
+        <tbody>
+          <tr><td>Receita Bruta</td><td class="num">${brl(r.receita_rha)}/ha</td></tr>
+          <tr><td>Custo Operacional</td><td class="num">${brl(r.custo_operacional_rha)}/ha</td></tr>
+          <tr><td>Custo Total</td><td class="num">${brl(r.custo_total_rha)}/ha</td></tr>
+          <tr><td>Margem Operacional</td><td class="num">${brl(r.margem_operacional_rha)}/ha</td></tr>
+          <tr><td>Margem Total</td><td class="num">${brl(r.margem_total_rha)}/ha</td></tr>
+          <tr><td>Ponto de Equilíbrio Operacional</td><td class="num">${n1(r.ponto_eq_operacional)} sc/ha</td></tr>
+          <tr><td>Ponto de Equilíbrio Total</td><td class="num">${n1(r.ponto_eq_total)} sc/ha</td></tr>
+          <tr><td>Lucratividade sobre a Receita</td><td class="num">${(r.lucratividade_pct*100).toFixed(1)}%</td></tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  const secDetalhe = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">6. Detalhamento Completo por Item</div>
+      <table class="pdf-table">
+        <thead><tr><th>Item</th><th class="num">R$/ha</th><th class="num">sc/ha</th><th class="num">% do custo</th>
+          <th class="num">Média MS</th><th>Situação</th></tr></thead>
+        <tbody>${Object.keys(r.itens).map(k=>{
+          const it = r.itens[k], nome = it.nome||LABELS[k];
+          const badgeLbl = ({acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'})[it.status]||'-';
+          return `<tr><td>${nome}</td><td class="num">${it.rha.toFixed(2)}</td><td class="num">${it.scha.toFixed(2)}</td>
+            <td class="num">${(it.pct*100).toFixed(1)}%</td><td class="num">${it.ref_rha!=null?it.ref_rha.toFixed(2):'-'}</td>
+            <td>${badgeLbl}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+
+  const conclusaoTexto = ct.status==='acima'
+    ? `O custo de produção está acima da média regional. Recomenda-se revisar prioritariamente as categorias
+      com maior desvio identificadas na seção 4, buscando oportunidades de redução sem comprometer a produtividade.`
+    : ct.status==='abaixo'
+    ? `O custo de produção está abaixo da média regional, indicando eficiência operacional. Recomenda-se manter
+      o acompanhamento periódico dos custos para sustentar esse resultado nas próximas safras.`
+    : `O custo de produção está em linha com a média regional. Recomenda-se manter o monitoramento periódico e
+      reavaliar os itens de maior peso a cada safra.`;
+  const secConclusao = `
+    <div class="pdf-sec">
+      <div class="pdf-h2">7. Conclusão</div>
+      <p class="pdf-p">${conclusaoTexto} Este relatório deve ser interpretado como referência gerencial, a partir de
+      dados autodeclarados e da média de custos apurada pela Aprosoja/MS para a safra ${meta.safra}.</p>
+    </div>`;
+
+  return `<div class="pdf-only">${secResumo}${secDados}${secEstrutura}${secComposicao}${secComparativo}${secEquilibrio}${secDetalhe}${secConclusao}</div>`;
+}
+
 function renderRelatorio(r, meta){
   const mc = r.margem_total_rha>=0 ? 'g':'r';
   const mo = r.margem_operacional_rha>=0 ? 'g':'r';
-  const donut = svgDonut(r.grupos, r.custo_total_rha);
-  const legend = Object.keys(r.grupos).map((nome,i)=>`
-    <div class="lgi"><span class="lgc" style="background:${CORES_GRUPO[i%CORES_GRUPO.length]}"></span>
-      ${nome}<span class="pct">${pct0(r.grupos[nome].pct)}</span></div>`).join('');
+  const fatiasItens = Object.keys(r.itens).map(k=>({
+    chave:k, nome:r.itens[k].nome||LABELS[k], rha:r.itens[k].rha, pct:r.itens[k].pct, cor:corDoItem(k),
+  }));
+  const donut = svgDonut(fatiasItens, r.custo_total_rha);
+  const legend = fatiasItens.map(f=>`
+    <div class="lgi"><span class="lgc" style="background:${f.cor}"></span>
+      ${f.nome}<span class="pct">${pct0(f.pct)}</span></div>`).join('');
 
   const maxRha = Math.max(...Object.values(r.grupos).map(g=>Math.max(g.rha, g.ref_rha||0)));
   const cmpRows = Object.keys(r.grupos).map(nome=>{
@@ -679,29 +1021,49 @@ function renderRelatorio(r, meta){
     const it = r.itens[k];
     const maxPct = Math.max(...Object.values(r.itens).map(x=>x.pct));
     const barW = maxPct ? (it.pct/maxPct*100) : 0;
-    const badgeLbl = {acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'}[it.status]||'—';
+    const badgeLbl = {acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'}[it.status]||'-';
     return `
     <div class="item-card">
-      <div class="item-top"><span class="item-name">${LABELS[k]}</span><span class="badge ${it.status}">${badgeLbl}</span></div>
+      <div class="item-top"><span class="item-name">${it.nome||LABELS[k]}</span><span class="badge ${it.status}">${badgeLbl}</span></div>
       <div class="item-grid">
         <div>R$/ha<b>${it.rha.toFixed(2)}</b></div>
         <div>sc/ha<b>${it.scha.toFixed(2)}</b></div>
         <div>% custo<b>${(it.pct*100).toFixed(1)}%</b></div>
-        <div>Média MS<b>${it.ref_rha!=null?it.ref_rha.toFixed(2):'—'}</b></div>
+        <div>Média MS<b>${it.ref_rha!=null?it.ref_rha.toFixed(2):'-'}</b></div>
       </div>
       <div class="item-bar-track"><div class="item-bar" style="width:${barW}%"></div></div>
     </div>`;
   }).join('');
 
   const insightsHtml = gerarInsights(r).map(([tipo,texto])=>{
-    const ico = {ok:'✓',alerta:'⚠',info:'•'}[tipo];
-    return `<div class="ins ${tipo}"><b class="ico">${ico}</b><span>${texto}</span></div>`;
+    return `<div class="ins ${tipo}"><span>${texto}</span></div>`;
   }).join('');
 
+  const geradoEm = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const view = document.getElementById('report-view');
   view.innerHTML = `
-    <div class="card" style="border-color:var(--gold)">
-      <div class="stitle">📊 Relatório — ${meta.municipio} · ${n1(r.area)} ha · Safra ${meta.safra}</div>
+    <div id="print-header">
+      <div class="ph-top">
+        <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+        <div>
+          <div class="ph-title">Relatório de Custo de Produção - Soja</div>
+          <div class="ph-sub">Aprosoja/MS · Safra ${meta.safra} · Gerado em ${geradoEm}</div>
+        </div>
+      </div>
+      <div class="ph-meta">
+        <div>Nome<b>${meta.produtor||'-'}</b></div>
+        <div>Município<b>${meta.municipio||'-'}</b></div>
+        <div>Área<b>${n1(r.area)} ha</b></div>
+        <div>Produtividade<b>${n1(r.produtividade)} sc/ha</b></div>
+        <div>Preço de venda<b>${brl(r.preco)}/sc</b></div>
+        <div>Receita bruta<b>${brl(r.receita_rha)}/ha</b></div>
+        <div>Custo total<b>${brl(r.custo_total_rha)}/ha</b></div>
+        <div>Margem total<b>${brl(r.margem_total_rha)}/ha</b></div>
+      </div>
+    </div>
+
+    <div class="card no-print" style="border-color:var(--gold)">
+      <div class="stitle">Relatório - ${meta.municipio} · ${n1(r.area)} ha · Safra ${meta.safra}</div>
       <div class="kgrid">
         <div class="kcard"><div class="klbl">Custo Total</div><div class="kval">${brl(r.custo_total_rha)}</div><div class="ksub">/ha</div></div>
         <div class="kcard"><div class="klbl">Custo / Saca</div><div class="kval">${brl(r.custo_sc_total)}</div><div class="ksub">R$/sc</div></div>
@@ -714,43 +1076,60 @@ function renderRelatorio(r, meta){
       </div>
     </div>
 
-    <div class="card">
-      <div class="stitle">🔎 Diagnóstico</div>
+    <div class="card no-print">
+      <div class="stitle">Diagnóstico</div>
       ${insightsHtml}
     </div>
 
-    <div class="card">
-      <div class="stitle">🍩 Composição do Custo</div>
+    <div class="card no-print">
+      <div class="stitle">Composição do Custo</div>
       <div class="donut-wrap">${donut}<div class="legend">${legend}</div></div>
     </div>
 
-    <div class="card">
-      <div class="stitle">📈 Comparativo com a Média Aprosoja/MS</div>
+    <div class="card no-print">
+      <div class="stitle">Comparativo com a Média Aprosoja/MS</div>
       ${cmpRows}
     </div>
 
-    <div class="card">
-      <div class="stitle">📋 Detalhamento por Item</div>
+    <div class="card no-print">
+      <div class="stitle">Detalhamento por Item</div>
       ${itemRows}
     </div>
 
-    <button class="bprimary" onclick="novoCalculo()">🔄 Novo Cálculo</button>
-    <button class="bsecondary" style="width:100%;margin-top:8px" onclick="compartilharResultado()">📤 Compartilhar Resultado</button>
+    ${montarRelatorioPDF(r, meta, geradoEm)}
+
+    <div id="print-footer">
+      Relatório gerado pelo app Calculadora de Custo e Margem, Aprosoja/MS, em ${geradoEm}.
+      Dados informados pelo próprio produtor/técnico; valores de referência da média Aprosoja/MS
+      (safra ${meta.safra}) para fins comparativos.
+    </div>
+    <div id="print-closing">
+      <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
+    </div>
+
+    <button class="bprimary no-print" onclick="novoCalculo()">Novo Cálculo</button>
+    <button class="bsecondary no-print" style="width:100%;margin-top:8px" onclick="baixarPdfRelatorio()">Baixar PDF do Relatório</button>
+    <button class="bghost no-print" style="width:100%;margin-top:2px" onclick="compartilharResultado()">Compartilhar resumo em texto</button>
   `;
   document.getElementById('wizard').style.display='none';
   view.style.display='block';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function baixarPdfRelatorio(){
+  showToast('Na caixa que abrir, escolha "Salvar como PDF" para baixar o relatório.');
+  setTimeout(()=>window.print(), 400);
+}
+
 let ultimoResultado=null, ultimaMeta=null;
 async function calcularESalvar(){
-  const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF);
+  const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF, outrosCustos);
   const meta = {produtor:lavoura.produtor, municipio:lavoura.municipio, safra:REF.safra, data:new Date().toISOString().split('T')[0]};
   ultimoResultado=r; ultimaMeta=meta;
   renderRelatorio(r, meta);
 
-  const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), resultado:r, safra:REF.safra, cultura:'Soja',
-    status:'pending', created_at:new Date().toISOString()};
+  const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), outros_custos:JSON.parse(JSON.stringify(outrosCustos)),
+    resultado:r, safra:REF.safra, cultura:'Soja', status:'pending', created_at:new Date().toISOString()};
   await dbAdd(entry);
   atualizarBadge();
   showToast(online?'Salvo. Sincronizando...':'Salvo no dispositivo. Sincronizará ao conectar.');
@@ -760,6 +1139,7 @@ async function calcularESalvar(){
 function novoCalculo(){
   valores={}; CAMPOS_TOTAL.forEach(k=>valores[k]=0); CAMPOS_POR_HA.forEach(k=>valores[k]=0);
   lavoura={produtor:'',municipio:'',area:0,produtividade:REF?0:0,preco:REF?REF.preco_medio:0};
+  outrosCustos=[];
   stepIdx=0;
   document.getElementById('report-view').style.display='none';
   document.getElementById('report-view').innerHTML='';
@@ -771,12 +1151,12 @@ function novoCalculo(){
 async function compartilharResultado(){
   if(!ultimoResultado) return;
   const r=ultimoResultado, meta=ultimaMeta;
-  const texto = `📊 Custo de Produção — ${meta.municipio} (Safra ${meta.safra})\n`+
+  const texto = `Custo de Produção - ${meta.municipio} (Safra ${meta.safra})\n`+
     `Custo Total: ${brl(r.custo_total_rha)}/ha\n`+
     `Ponto de Equilíbrio: ${n1(r.ponto_eq_total)} sc/ha\n`+
     `Margem Total: ${brl(r.margem_total_rha)}/ha\n`+
     `Lucratividade: ${(r.lucratividade_pct*100).toFixed(1)}%\n\n`+
-    `Calculado com a Calculadora de Custo e Margem — Aprosoja/MS`;
+    `Calculado com a Calculadora de Custo e Margem, Aprosoja/MS`;
   if(navigator.share){ try{ await navigator.share({text:texto}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   if(navigator.clipboard) navigator.clipboard.writeText(texto).then(()=>showToast('Resultado copiado.'));
 }
@@ -797,7 +1177,7 @@ const dbAll = ()=>new Promise((r,j)=>{const q=db.transaction('entries','readonly
 const dbAdd = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').add(e);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 const dbPut = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').put(e);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
-// ─── CONFIG (sem token embutido por padrão — configure em Ajustes ou por link) ─
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
 const getCfg = ()=>({token:localStorage.getItem('gh_token_custo')||'', repo:localStorage.getItem('gh_repo_custo')||REPO_DEFAULT});
 (function(){
   let raw='';
@@ -814,6 +1194,20 @@ const getCfg = ()=>({token:localStorage.getItem('gh_token_custo')||'', repo:loca
     setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
   }catch(e){ console.error('Link de configuração inválido',e); }
 })();
+
+// Configuração padrão embutida (codificada): token com acesso apenas ao
+// repositório de dados deste app (economia2-cyber/calculadora-de-custo).
+// Um link ?cfg= ou o campo em Ajustes (acesso oculto: 7 toques no logo)
+// continuam tendo prioridade sobre este valor.
+const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwMFMyOEFLQ1JlcXFaX0ZSUjJySnlOVk40RTBiTkIzaGN4YmxZZ2tvbUVMSHdLWWlNNzhzdE5NRVBYVVRUSlJKSUptcG1SOGtmfGVjb25vbWlhMi1jeWJlci9jYWxjdWxhZG9yYS1kZS1jdXN0bw==';
+(function(){
+  if(localStorage.getItem('gh_repo_custo')) return;
+  try{
+    const [t,r]=atob(CFG_EMBED).split('|');
+    if(t&&!localStorage.getItem('gh_token_custo')) localStorage.setItem('gh_token_custo',t.trim());
+    if(r) localStorage.setItem('gh_repo_custo',r.trim());
+  }catch(e){ console.error('Configuração embutida inválida',e); }
+})();
 function salvarCfg(){
   const t=document.getElementById('cfg-token').value.trim();
   const r=document.getElementById('cfg-repo').value.trim();
@@ -827,7 +1221,7 @@ function salvarCfg(){
 function carregarCfg(){
   const {token,repo}=getCfg();
   const tEl=document.getElementById('cfg-token');
-  tEl.value=''; tEl.placeholder=token?'Token configurado — digite aqui só para trocar':'github_pat_xxxxxxxxxxxxxxxxxxxx';
+  tEl.value=''; tEl.placeholder=token?'Token configurado, digite aqui só para trocar':'github_pat_xxxxxxxxxxxxxxxxxxxx';
   document.getElementById('cfg-repo').value=repo;
 }
 
@@ -843,7 +1237,7 @@ async function ghGet(token,repo,path){
   return {sha:j.sha, dados:JSON.parse(new TextDecoder('utf-8').decode(bytes))};
 }
 async function ghPut(token,repo,path,dados,sha){
-  const body={message:`Coleta de custos campo — ${new Date().toISOString().split('T')[0]}`,
+  const body={message:`Coleta de custos campo - ${new Date().toISOString().split('T')[0]}`,
     content:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))};
   if(sha) body.sha=sha;
   const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
@@ -887,8 +1281,8 @@ async function atualizarSbar(){
   const p=todas.filter(e=>e.status==='pending').length;
   const tx=document.getElementById('sbar-txt'), bs=document.getElementById('bsync');
   if(!token||!repo){ tx.textContent='Configure a conexão em Ajustes para sincronizar.'; bs.style.display='none'; return; }
-  if(!online&&p){ tx.textContent=`Offline — ${p} cálculo(s) aguardando conexão`; bs.style.display='none'; }
-  else if(p){ tx.textContent=`Online — ${p} cálculo(s) prontos para sincronizar`; bs.style.display='block'; }
+  if(!online&&p){ tx.textContent=`Offline: ${p} cálculo(s) aguardando conexão`; bs.style.display='none'; }
+  else if(p){ tx.textContent=`Online: ${p} cálculo(s) prontos para sincronizar`; bs.style.display='block'; }
   else{ tx.textContent='Todos os cálculos estão sincronizados'; bs.style.display='none'; }
 }
 async function renderPending(){
@@ -900,7 +1294,7 @@ async function renderPending(){
     const badge = e.status==='pending' ? '<span class="badge bpend">Pendente</span>' : '<span class="badge bsync2">Sincronizado</span>';
     return `
     <div class="ecard" onclick='reabrirCalculo(${e.id})'>
-      <div class="ehead"><span class="emun">${e.municipio||'—'}</span>${badge}</div>
+      <div class="ehead"><span class="emun">${e.municipio||'-'}</span>${badge}</div>
       <div class="edet">${e.produtor||''} · ${n1(e.area)} ha · Custo total: ${brl(r.custo_total_rha||0)}/ha</div>
     </div>`;
   }).join('');
@@ -925,13 +1319,13 @@ function showPage(p){
   if(p==='settings') carregarCfg();
   if(p==='share'){
     document.getElementById('share-link').textContent = APP_LINK;
-    document.getElementById('about-safra').textContent = REF?REF.safra:'—';
+    document.getElementById('about-safra').textContent = REF?REF.safra:'-';
   }
 }
 
 // ─── COMPARTILHAR O APP ─────────────────────────────────────────────────────────
 const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/';
-const SHARE_TEXT=`🧮 Calcule o custo de produção da sua lavoura de soja!\nDescubra a composição do seu custo, compare com a média do estado, veja o ponto de equilíbrio e a margem — tudo em minutos, direto do celular.\nAcesse agora:\n${APP_LINK}\n\nAplicativo criado e publicado pela Aprosoja/MS.`;
+const SHARE_TEXT=`Calcule o custo de produção da sua lavoura de soja!\nDescubra a composição do seu custo, compare com a média do estado e veja o ponto de equilíbrio e a margem, tudo em minutos, direto do celular.\nAcesse agora:\n${APP_LINK}\n\nAplicativo criado e publicado pela Aprosoja/MS.`;
 async function compartilharApp(){
   if(navigator.share){ try{ await navigator.share({text:SHARE_TEXT}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   copiarLink();
