@@ -2067,8 +2067,16 @@ window.addEventListener('online', ()=>setOnline(true));
 window.addEventListener('offline',()=>setOnline(false));
 
 // ─── SERVICE WORKER ───────────────────────────────────────────────────────────
+// Verifica atualização não só ao registrar, mas sempre que o app volta a ficar
+// em primeiro plano — cobre o caso comum de PWA instalado, onde o usuário
+// alterna de volta pro app já aberto em vez de dar um "cold start".
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg=>{ reg.update().catch(()=>{}); }).catch(console.error);
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.update().catch(()=>{});
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState==='visible') reg.update().catch(()=>{});
+    });
+  }).catch(console.error);
   let _swReload=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReload) return; _swReload=true; location.reload(); });
 }
