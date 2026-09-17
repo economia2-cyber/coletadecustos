@@ -223,6 +223,8 @@
 
     .footnote{margin-top:14px;padding:10px 12px;border-top:1px solid var(--bdl);
       color:var(--tx);font-size:.66rem;line-height:1.5;text-align:center}
+    .duvidas{margin-top:10px;padding:10px 12px;text-align:center}
+    .duvidas a{color:var(--gd);font-size:.72rem;font-weight:700;text-decoration:underline}
 
     hr{border:none;border-top:1px solid var(--bdl);margin:14px 0}
     ::-webkit-scrollbar{width:3px}
@@ -313,6 +315,7 @@
 
   <div class="footnote">Os dados informados alimentam a base de custos regionais da Aprosoja/MS,
     usada apenas de forma agregada. Nenhuma informação individual é divulgada.</div>
+  <div class="duvidas no-print"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
 <!-- ════════════════ PENDENTES ════════════════ -->
@@ -325,6 +328,7 @@
 
   <div id="elist"></div>
   <div class="empty" id="empty-state" style="display:none">Nenhum cálculo salvo ainda.<br>Vá em "Calcular" para começar.</div>
+  <div class="duvidas"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
 <!-- ════════════════ COMPARTILHAR ════════════════ -->
@@ -332,7 +336,12 @@
   <div class="ptitle">COMPARTILHAR O APP</div>
   <div class="psub">Convide outros produtores a calcular o custo da própria lavoura</div>
   <div class="sbar" style="text-align:center;word-break:break-all" id="share-link"></div>
-  <button class="bprimary" onclick="compartilharApp()">Compartilhar link</button>
+  <div style="text-align:center;margin:4px 0 14px">
+    <img id="qr-app" alt="QR Code para acessar o app" style="width:180px;height:180px;border:1px solid var(--bd);border-radius:10px;background:#fff;padding:8px" onerror="this.style.display='none'">
+    <div class="fhint" style="margin-top:6px">Aponte a câmera do celular pra este código pra abrir o app direto</div>
+  </div>
+  <button class="bprimary" style="width:100%;background:#25D366;color:#fff;box-shadow:none" onclick="compartilharWhatsApp()">Compartilhar pelo WhatsApp</button>
+  <button class="bsecondary" style="width:100%;margin-top:8px" onclick="compartilharApp()">Compartilhar link (outro app)</button>
   <button class="bsecondary" style="width:100%;margin-top:8px" onclick="copiarLink()">Copiar link</button>
   <hr>
   <div class="stitle">SOBRE</div>
@@ -342,6 +351,7 @@
     sincroniza quando você tiver conexão.
   </p>
   <p style="font-size:.7rem;color:var(--tx);margin-top:10px">Safra de referência: <b id="about-safra" style="color:var(--gd)"></b></p>
+  <div class="duvidas"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
 <!-- ════════════════ AJUSTES (acesso: 7 toques no logo) ════════════════ -->
@@ -358,6 +368,7 @@
   <button class="bprimary" onclick="salvarCfg()">Salvar configurações</button>
   <hr>
   <p style="text-align:center;color:var(--tx);font-size:.7rem;padding:6px 0">Aprosoja/MS · Custo e Margem</p>
+  <div class="duvidas"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
 <!-- Bottom nav -->
@@ -1812,6 +1823,19 @@ function baixarPdfRelatorio(){
 }
 
 let ultimoResultado=null, ultimaMeta=null;
+// Geolocalização do lançamento: usada só para alimentar a planilha (região
+// real da lavoura), nunca mostrada na tela do produtor. Falha em silêncio
+// (permissão negada, sem GPS, timeout) — não trava nem avisa o produtor.
+function obterGeolocalizacao(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos=>resolve({latitude:pos.coords.latitude, longitude:pos.coords.longitude}),
+      ()=>resolve(null),
+      {timeout:5000, maximumAge:600000}
+    );
+  });
+}
 async function calcularESalvar(){
   valores.juros = jurosFinanciamentoPrevisto(lavoura.area||0);
   const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF, outrosCustos);
@@ -1819,8 +1843,10 @@ async function calcularESalvar(){
   ultimoResultado=r; ultimaMeta=meta;
   renderRelatorio(r, meta, maquinas, benfeitorias);
 
+  const geo = await obterGeolocalizacao();
   const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), outros_custos:JSON.parse(JSON.stringify(outrosCustos)),
     maquinas_detalhe:JSON.parse(JSON.stringify(maquinas)), benfeitorias_detalhe:JSON.parse(JSON.stringify(benfeitorias)),
+    latitude: geo?geo.latitude:null, longitude: geo?geo.longitude:null,
     resultado:r, safra:REF.safra, cultura:'Soja', status:'pending', created_at:new Date().toISOString()};
   await dbAdd(entry);
   atualizarBadge();
@@ -2023,15 +2049,21 @@ function showPage(p){
   if(p==='share'){
     document.getElementById('share-link').textContent = APP_LINK;
     document.getElementById('about-safra').textContent = REF?REF.safra:'-';
+    const qr = document.getElementById('qr-app');
+    if(qr && !qr.src) qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(APP_LINK);
   }
 }
 
 // ─── COMPARTILHAR O APP ─────────────────────────────────────────────────────────
 const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/';
-const SHARE_TEXT=`Calcule o custo de produção da sua lavoura de soja!\nDescubra a composição do seu custo, compare com a média do estado e veja o ponto de equilíbrio e a margem, tudo em minutos, direto do celular.\nAcesse agora:\n${APP_LINK}\n\nAplicativo criado e publicado pela Aprosoja/MS.`;
+const WHATSAPP_SUPORTE='5567981134433'; // (67) 98113-4433
+const SHARE_TEXT=`Antes de plantar, já sabe quanto vai custar a sua safra de soja?\nEm poucos minutos, direto do celular, você recebe uma previsão completa do custo de produção da sua lavoura, compara com a média do estado e descobre sua margem e ponto de equilíbrio antes mesmo de plantar.\nÉ grátis, funciona offline e é uma ferramenta oficial da Aprosoja/MS.\nAcesse agora:\n${APP_LINK}`;
 async function compartilharApp(){
   if(navigator.share){ try{ await navigator.share({text:SHARE_TEXT}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   copiarLink();
+}
+function compartilharWhatsApp(){
+  window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(SHARE_TEXT), '_blank');
 }
 function copiarLink(){
   const fb=()=>{ const ta=document.createElement('textarea'); ta.value=APP_LINK; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Link copiado.'); };
