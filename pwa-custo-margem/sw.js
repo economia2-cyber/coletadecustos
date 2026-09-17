@@ -1,5 +1,5 @@
 const CACHE = 'aprosoja-custo-v1';
-const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json'];
+const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json', './maquinas_marcas_modelos.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
