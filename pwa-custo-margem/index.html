@@ -580,9 +580,56 @@ function modelosDisponiveis(tipo, marca){
   return porTipo[marca] || porTipo[(marca||'').toUpperCase()] || [];
 }
 
+// Faixa de anos de fabricação por modelo (pesquisada aos poucos, cobrindo
+// primeiro marcas/modelos mais usados em MS) — arquivo pode não ter todos os
+// 1.646 modelos do catálogo; quando não encontrar, não mostra nada (não
+// inventa a faixa). Chave por "modelo-base" (sem sufixo de configuração,
+// tipo cabine/rodado/kit), já que isso não muda o ano de fabricação.
+const CAMINHO_ANOS_FABRICACAO = 'maquinas_anos_fabricacao.json';
+let ANOS_FABRICACAO = null; // {Tipo: {MARCA: {modeloOuBase: {inicio, fim}}}}
+async function carregarAnosFabricacao(){
+  try{
+    const r = await fetch('./'+CAMINHO_ANOS_FABRICACAO, {cache:'no-cache'});
+    ANOS_FABRICACAO = await r.json();
+  }catch(e){
+    try{ ANOS_FABRICACAO = JSON.parse(localStorage.getItem('anos_fabricacao_cache')); }catch(_){}
+  }
+  if(ANOS_FABRICACAO) localStorage.setItem('anos_fabricacao_cache', JSON.stringify(ANOS_FABRICACAO));
+  if(stepIdx!=null && STEPS[stepIdx] && STEPS[stepIdx].tipo==='maquinas') renderStep();
+  return ANOS_FABRICACAO;
+}
+const PALAVRAS_CONFIG_MODELO = new Set(['CAB','ROPS','MEC','PS','DUAL','ROD','SIMPLES','DUPLO','I','II','III','IV',
+  'KIT','ARROZ','CAFEEIRO','4X2','4X4','FBO','CARGO','SHE','SEI','HSE','COMPACT',
+  'SUPER','REDUTOR','INVERSOR','TURBO','STANDARD','PLATAFORMADO','CABINADO','CH','SH']);
+function modeloBase(modelo){
+  const tokens = (modelo||'').trim().split(/\s+/).filter(Boolean);
+  const base = [];
+  for(const t of tokens){
+    const tc = t.replace(/[.\-]/g,'').toUpperCase();
+    if(PALAVRAS_CONFIG_MODELO.has(tc)) break;
+    base.push(t);
+    if(base.length>=2) break;
+  }
+  return base.length ? base.join(' ') : modelo;
+}
+function faixaAnosModelo(tipo, marca, modelo){
+  if(!modelo || modelo==='Outro' || !ANOS_FABRICACAO) return null;
+  const porTipo = ANOS_FABRICACAO[tipo];
+  if(!porTipo) return null;
+  const porMarca = porTipo[marca] || porTipo[(marca||'').toUpperCase()];
+  if(!porMarca) return null;
+  return porMarca[modelo] || porMarca[modeloBase(modelo)] || null;
+}
+function textoFaixaAnos(faixa){
+  if(!faixa) return '';
+  if(!faixa.fim) return `a partir de ${faixa.inicio} (produção atual)`;
+  if(faixa.fim===faixa.inicio) return `em ${faixa.inicio}`;
+  return `de ${faixa.inicio} a ${faixa.fim}`;
+}
+
 function novaMaquina(){
   const c = CATALOGO_MAQUINAS[0];
-  return {tipo:c.nome, marca:'', modelo:'', potencia:0, valorBem:0,
+  return {tipo:c.nome, marca:'', modelo:'', potencia:0, valorBem:0, ano:0,
     vidaUtilAnos:c.anos, vidaUtilHoras:c.horas, residual:c.residual,
     usos:[novoUsoMaquina()]};
 }
@@ -1023,8 +1070,14 @@ function renderStep(){
         <div class="fg"><label>Valor do bem (R$) *</label>
           <input type="text" id="maq-valorbem-${mi}" inputmode="decimal" value="${fmtReais(m.valorBem)}" oninput="formatarCampoReais(this)">
           <div class="fhint">Valor de mercado/aquisição da máquina (patrimônio), não o gasto previsto da safra.</div></div>
-        <div class="fg"><label>Potência (cv) *</label>
-          <input type="text" id="maq-potencia-${mi}" inputmode="decimal" value="${fmtBR(m.potencia)}"></div>
+        <div class="fg oc-row">
+          <div class="oc-valor" style="flex:1"><label>Potência (cv) *</label>
+            <input type="text" id="maq-potencia-${mi}" inputmode="decimal" value="${fmtBR(m.potencia)}"></div>
+          <div class="oc-valor" style="flex:1"><label>Ano</label>
+            <input type="text" id="maq-ano-${mi}" inputmode="numeric" maxlength="4" placeholder="ex.: 2015" value="${m.ano?m.ano:''}"></div>
+        </div>
+        ${(()=>{ const faixa = faixaAnosModelo(m.tipo,m.marca,m.modelo);
+          return faixa ? `<div class="fhint" style="margin-bottom:8px">Esse modelo foi fabricado ${textoFaixaAnos(faixa)}.</div>` : ''; })()}
         <div class="fhint" style="margin-bottom:8px">Vida útil: ${n1(m.vidaUtilAnos)} anos (${n1(m.vidaUtilHoras)} h).
           Residual: ${((m.residual||0)*100).toFixed(0)}% (${m.tipo}, Metodologia Aprosoja/MS).</div>
         <hr style="margin:10px 0">
@@ -1181,11 +1234,13 @@ function lerCamposEtapa(){
       const moSelEl = document.getElementById('maq-modelo-'+mi);
       const pEl = document.getElementById('maq-potencia-'+mi);
       const vbEl = document.getElementById('maq-valorbem-'+mi);
+      const anoEl = document.getElementById('maq-ano-'+mi);
       if(tEl) m.tipo = tEl.value;
       if(maSelEl) m.marca = maSelEl.value;
       if(moSelEl) m.modelo = moSelEl.value;
       if(pEl) m.potencia = parseBR(pEl.value);
       if(vbEl) m.valorBem = parseBR(vbEl.value);
+      if(anoEl) m.ano = parseInt(anoEl.value, 10) || 0;
       m.usos.forEach((u,ui)=>{
         const fSelEl = document.getElementById(`uso-fase-${mi}-${ui}`);
         const iSelEl = document.getElementById(`uso-implemento-${mi}-${ui}`);
@@ -2136,6 +2191,7 @@ setTimeout(()=>{
   lavoura.preco = REF ? REF.preco_medio : 0;
   renderStep();
   carregarMarcasModelos(); // carrega em segundo plano; re-renderiza sozinho quando pronto
+  carregarAnosFabricacao(); // idem, faixa de anos de fabricação por modelo
   setOnline(navigator.onLine);
   atualizarBadge();
 })();
