@@ -101,13 +101,6 @@
       border:1.5px solid var(--bd);border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer}
     .bghost{padding:12px 16px;background:transparent;color:var(--tl);
       border:none;border-radius:10px;font-size:.82rem;cursor:pointer;text-decoration:underline}
-    /* Sugestões clicáveis (fase/implemento): botões simples em vez de datalist,
-       que não abre de forma confiável em navegadores de celular. */
-    .chip-row{display:flex;flex-wrap:wrap;gap:8px}
-    .chip{padding:9px 13px;min-height:34px;background:var(--cream2);color:var(--tm);
-      border:1px solid var(--bd);border-radius:20px;font-size:.7rem;font-weight:600;
-      cursor:pointer;white-space:nowrap}
-    .chip:active{background:var(--gold-pale);border-color:var(--gold)}
     .bsync{width:100%;padding:12px;background:var(--gd);color:var(--gold-pale);
       border:1px solid var(--gl);border-radius:10px;font-size:.85rem;font-weight:700;
       cursor:pointer;margin-top:10px}
@@ -524,6 +517,7 @@ let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
 let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
 
 // ─── OPERAÇÃO DE MÁQUINAS (fases → veículos) ───────────────────────────────────
+const OUTRO_MARCADOR = '__outro__'; // valor de opção de <select> que revela um campo de texto livre
 const FASES_MAQUINAS_PADRAO = ['Preparo do Solo', 'Plantio', 'Tratos Culturais (Pulverizações)', 'Colheita'];
 const IMPLEMENTOS_SUGERIDOS = ['Grade Niveladora','Grade Aradora','Subsolador','Plantadeira/Semeadora',
   'Pulverizador Autopropelido','Pulverizador de Arrasto','Distribuidor de Calcário/Fertilizante',
@@ -903,10 +897,13 @@ function renderStep(){
       <div class="card" style="border-color:var(--gold-pale);margin-bottom:10px">
         <div class="fg oc-row" style="margin-bottom:6px">
           <div class="oc-desc" style="flex:1"><label>Fase da produção</label>
-            <input type="text" id="fase-nome-${fi}" placeholder="Ex: Preparo do Solo" value="${fase.nome||''}"></div>
+            <select id="fase-sel-${fi}" onchange="mudarFaseSelect(${fi},this.value)">
+              ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${fase.nome===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
+              <option value="${OUTRO_MARCADOR}"${!FASES_MAQUINAS_PADRAO.includes(fase.nome)?' selected':''}>Outra fase (digitar)</option>
+            </select>
+            ${!FASES_MAQUINAS_PADRAO.includes(fase.nome) ? `<input type="text" id="fase-nome-${fi}" placeholder="Nome da fase" value="${fase.nome||''}" style="margin-top:6px">` : ''}</div>
           ${fasesMaquinas.length>1 ? `<button type="button" class="bsecondary oc-remove" onclick="removerFaseMaquina(${fi})">Remover fase</button>` : ''}
         </div>
-        <div class="chip-row" style="margin-bottom:10px">${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<button type="button" class="chip" onclick="preencherFaseMaquina(${fi},'${nomeFase.replace(/'/g,"\\'")}')">${nomeFase}</button>`).join('')}</div>
         ${fase.veiculos.map((v,vi)=>`
         <div class="item-card" style="background:var(--cream2)">
           <div class="item-top"><span class="item-name">Veículo ${vi+1}</span>
@@ -918,8 +915,11 @@ function renderStep(){
           <div class="fg"><label>Veículo/Modelo</label>
             <input type="text" id="veic-nome-${fi}-${vi}" placeholder="Ex: Trator Valtra BH180" value="${v.nome||''}"></div>
           <div class="fg"><label>Implemento</label>
-            <input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Ex: Pulverizador de Arrasto" value="${v.implemento||''}"></div>
-          <div class="chip-row" style="margin-bottom:8px">${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<button type="button" class="chip" onclick="preencherImplemento(${fi},${vi},'${nomeImp.replace(/'/g,"\\'")}')">${nomeImp}</button>`).join('')}</div>
+            <select id="veic-implemento-sel-${fi}-${vi}" onchange="mudarImplementoSelect(${fi},${vi},this.value)">
+              ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${v.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
+              <option value="${OUTRO_MARCADOR}"${!IMPLEMENTOS_SUGERIDOS.includes(v.implemento)?' selected':''}>Outro (digitar)</option>
+            </select>
+            ${!IMPLEMENTOS_SUGERIDOS.includes(v.implemento) ? `<input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Nome do implemento" value="${v.implemento||''}" style="margin-top:6px">` : ''}</div>
           <div class="fhint" style="margin-bottom:8px">Com os dados técnicos abaixo, o app já prevê o custo de operação
             deste veículo (diesel, operador, manutenção) e sua depreciação, seguro e remuneração do capital fixo, com a
             mesma fórmula da Metodologia da Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto: se deixar
@@ -1061,13 +1061,16 @@ function lerCamposEtapa(){
   if(step.tipo==='revisao') return true;
   if(step.tipo==='maquinas'){
     fasesMaquinas.forEach((fase,fi)=>{
-      const fEl = document.getElementById('fase-nome-'+fi);
-      if(fEl) fase.nome = fEl.value.trim();
+      const fSelEl = document.getElementById('fase-sel-'+fi);
+      const fTxtEl = document.getElementById('fase-nome-'+fi);
+      if(fTxtEl) fase.nome = fTxtEl.value.trim();
+      else if(fSelEl) fase.nome = fSelEl.value;
       fase.veiculos.forEach((v,vi)=>{
         const nEl = document.getElementById(`veic-nome-${fi}-${vi}`);
         const tEl = document.getElementById(`veic-tipo-${fi}-${vi}`);
         const pEl = document.getElementById(`veic-potencia-${fi}-${vi}`);
-        const iEl = document.getElementById(`veic-implemento-${fi}-${vi}`);
+        const iSelEl = document.getElementById(`veic-implemento-sel-${fi}-${vi}`);
+        const iTxtEl = document.getElementById(`veic-implemento-${fi}-${vi}`);
         const psEl = document.getElementById(`veic-passadas-${fi}-${vi}`);
         const vbEl = document.getElementById(`veic-valorbem-${fi}-${vi}`);
         const laEl = document.getElementById(`veic-largura-${fi}-${vi}`);
@@ -1075,7 +1078,8 @@ function lerCamposEtapa(){
         if(nEl) v.nome = nEl.value.trim();
         if(tEl) v.tipo = tEl.value;
         if(pEl) v.potencia = parseFloat(pEl.value)||0;
-        if(iEl) v.implemento = iEl.value.trim();
+        if(iTxtEl) v.implemento = iTxtEl.value.trim();
+        else if(iSelEl) v.implemento = iSelEl.value;
         if(psEl) v.passadas = parseFloat(psEl.value)||0;
         if(vbEl) v.valorBem = parseFloat(vbEl.value)||0;
         if(laEl) v.largura = parseFloat(laEl.value)||0;
@@ -1209,14 +1213,14 @@ function mudarTipoMaquina(fi,vi,tipoNome){
   if(cat){ v.vidaUtilAnos=cat.anos; v.vidaUtilHoras=cat.horas; v.residual=cat.residual; }
   renderStep();
 }
-function preencherFaseMaquina(fi,nome){
+function mudarFaseSelect(fi,valor){
   lerCamposEtapa();
-  fasesMaquinas[fi].nome = nome;
+  fasesMaquinas[fi].nome = valor===OUTRO_MARCADOR ? '' : valor;
   renderStep();
 }
-function preencherImplemento(fi,vi,nome){
+function mudarImplementoSelect(fi,vi,valor){
   lerCamposEtapa();
-  fasesMaquinas[fi].veiculos[vi].implemento = nome;
+  fasesMaquinas[fi].veiculos[vi].implemento = valor===OUTRO_MARCADOR ? '' : valor;
   renderStep();
 }
 function adicionarBenfeitoria(){
