@@ -714,6 +714,25 @@ function fmtReais(num){
   if(!num) return '';
   return num.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
+// Reformata um campo de R$ com separador de milhar EM TEMPO REAL, enquanto o
+// produtor digita (não só quando a etapa é re-renderizada) — mantém o cursor
+// na posição certa usando a distância até o FIM do texto como referência
+// (os separadores só mudam antes do cursor, então a "cauda" depois dele
+// nunca muda de tamanho).
+function formatarCampoReais(el){
+  const distDoFim = el.value.length - el.selectionStart;
+  let raw = el.value.replace(/[^\d,]/g,'');
+  const primeiraVirgula = raw.indexOf(',');
+  if(primeiraVirgula!==-1) raw = raw.slice(0,primeiraVirgula+1) + raw.slice(primeiraVirgula+1).replace(/,/g,'');
+  let [intPart, decPart] = raw.split(',');
+  intPart = (intPart||'').replace(/^0+(?=\d)/,'');
+  if(decPart!=null) decPart = decPart.slice(0,2);
+  let novoValor = intPart ? Number(intPart).toLocaleString('pt-BR') : '';
+  if(decPart!=null) novoValor += ','+decPart;
+  el.value = novoValor;
+  const novaPos = Math.max(0, novoValor.length-distDoFim);
+  el.setSelectionRange(novaPos, novaPos);
+}
 
 // ─── REFERÊNCIA ───────────────────────────────────────────────────────────────
 async function carregarReferencia(){
@@ -920,7 +939,7 @@ function renderStep(){
       <div class="fg"><label>Produtividade (sc/ha) *</label>
         <input type="text" id="f-produtividade" inputmode="decimal" placeholder="0" value="${fmtBR(lavoura.produtividade)}"></div>
       <div class="fg"><label>Preço de venda (R$/sc) *</label>
-        <input type="text" id="f-preco" inputmode="decimal" value="${fmtReais(lavoura.preco)}">
+        <input type="text" id="f-preco" inputmode="decimal" value="${fmtReais(lavoura.preco)}" oninput="formatarCampoReais(this)">
         <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'-'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
     `;
   }else if(step.tipo==='revisao'){
@@ -982,7 +1001,7 @@ function renderStep(){
             </select></div>
         </div>
         <div class="fg"><label>Valor do bem (R$) *</label>
-          <input type="text" id="maq-valorbem-${mi}" inputmode="decimal" value="${fmtReais(m.valorBem)}">
+          <input type="text" id="maq-valorbem-${mi}" inputmode="decimal" value="${fmtReais(m.valorBem)}" oninput="formatarCampoReais(this)">
           <div class="fhint">Valor de mercado/aquisição da máquina (patrimônio), não o gasto previsto da safra.</div></div>
         <div class="fg"><label>Potência (cv) *</label>
           <input type="text" id="maq-potencia-${mi}" inputmode="decimal" value="${fmtBR(m.potencia)}"></div>
@@ -1042,7 +1061,7 @@ function renderStep(){
           <input type="text" id="oc-desc-${i}" placeholder="Ex: Arrendamento" value="${oc.descricao||''}"></div>
         <div class="oc-valor"><label>${i===0?'Valor':''}</label>
           <div style="display:flex;gap:4px">
-            <input type="text" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" value="${oc.unidade==='scha'?fmtBR(oc.valor):fmtReais(oc.valor)}" oninput="atualizarPreviewOutroCusto(${i})">
+            <input type="text" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" value="${oc.unidade==='scha'?fmtBR(oc.valor):fmtReais(oc.valor)}" oninput="${oc.unidade==='scha'?'':'formatarCampoReais(this);'}atualizarPreviewOutroCusto(${i})">
             <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 4px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
               <option value="total"${oc.unidade!=='scha'?' selected':''}>R$</option>
               <option value="scha"${oc.unidade==='scha'?' selected':''}>sc/ha</option>
@@ -1071,7 +1090,7 @@ function renderStep(){
           <input type="text" id="benf-nome-${bi}" placeholder="Ex: Galpão de Máquinas" value="${b.nome||''}"></div>
         <div class="fg oc-row">
           <div class="oc-valor" style="flex:1"><label>Valor do bem (R$) *</label>
-            <input type="text" id="benf-valor-${bi}" inputmode="decimal" value="${fmtReais(b.valor)}"></div>
+            <input type="text" id="benf-valor-${bi}" inputmode="decimal" value="${fmtReais(b.valor)}" oninput="formatarCampoReais(this)"></div>
           <div class="oc-valor" style="flex:1"><label>% de Ocupação *</label>
             <input type="text" id="benf-ocupacao-${bi}" inputmode="decimal" value="${fmtBR((b.ocupacao!=null?b.ocupacao:1)*100)}"></div>
         </div>
@@ -1117,7 +1136,7 @@ function renderStep(){
         const refHint = modo==='total' ? brl(refRha*(lavoura.area||0)) : brl(refRha)+'/ha';
         return `
         <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':''}</label>
-          <input type="text" id="c-${k}" inputmode="decimal" value="${val?fmtReais(val):(modo==='perha'?fmtReais(refRha):'')}">
+          <input type="text" id="c-${k}" inputmode="decimal" value="${val?fmtReais(val):(modo==='perha'?fmtReais(refRha):'')}" oninput="formatarCampoReais(this)">
           <div class="fhint">Média Aprosoja/MS: ${refHint}</div>
         </div>`;
       }).join('');
