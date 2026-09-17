@@ -101,6 +101,13 @@
       border:1.5px solid var(--bd);border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer}
     .bghost{padding:12px 16px;background:transparent;color:var(--tl);
       border:none;border-radius:10px;font-size:.82rem;cursor:pointer;text-decoration:underline}
+    /* Sugestões clicáveis (fase/implemento): botões simples em vez de datalist,
+       que não abre de forma confiável em navegadores de celular. */
+    .chip-row{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{padding:9px 13px;min-height:34px;background:var(--cream2);color:var(--tm);
+      border:1px solid var(--bd);border-radius:20px;font-size:.7rem;font-weight:600;
+      cursor:pointer;white-space:nowrap}
+    .chip:active{background:var(--gold-pale);border-color:var(--gold)}
     .bsync{width:100%;padding:12px;background:var(--gd);color:var(--gold-pale);
       border:1px solid var(--gl);border-radius:10px;font-size:.85rem;font-weight:700;
       cursor:pointer;margin-top:10px}
@@ -159,16 +166,18 @@
     .badge.acima{background:rgba(178,59,46,.12);color:var(--dn)}
     .badge.abaixo{background:rgba(30,122,74,.12);color:var(--up)}
     .badge.dentro{background:var(--bdl);color:var(--tl)}
-    .item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:.66rem;color:var(--tl)}
-    .item-grid b{display:block;font-size:.78rem;color:var(--td);font-weight:700}
+    .item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;font-size:.66rem;color:var(--tl)}
+    .item-grid b{display:block;font-size:.78rem;color:var(--td);font-weight:700;overflow-wrap:break-word}
+    @media (max-width:420px){ .item-grid{grid-template-columns:repeat(2,1fr)} }
     .item-bar-track{height:5px;background:var(--bdl);border-radius:3px;margin-top:7px;overflow:hidden}
     .item-bar{height:100%;background:var(--gold);border-radius:3px}
 
     /* ── Revisão (resumo) ── */
-    .resumo-row{display:flex;justify-content:space-between;padding:7px 0;
+    .resumo-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;padding:7px 0;
       border-bottom:1px solid var(--bdl);font-size:.82rem}
     .resumo-row:last-child{border-bottom:none}
-    .resumo-row b{color:var(--gd)}
+    .resumo-row span:first-child{flex:1 1 auto;min-width:0}
+    .resumo-row b{color:var(--gd);text-align:right}
 
     /* ── Sync bar ── */
     .sbar{background:var(--cream2);border:1px solid var(--bd);border-radius:9px;
@@ -403,6 +412,10 @@ const GRUPOS = {
   'Outros Custos Fixos': ['manut_periodica','encargos_sociais','seguro_capital'],
   'Renda de Fatores': ['renda_fatores'],
 };
+// Grupos 100% calculados a partir do valor/vida útil/residual de máquinas e
+// benfeitorias informados (não são uma escolha de gasto que dá pra "cortar"
+// diretamente, ao contrário de insumos, mão de obra etc.).
+const GRUPOS_ESTRUTURAIS = ['Depreciações', 'Renda de Fatores'];
 const CORES_GRUPO = ['#0b3d2e','#165c3a','#1e7a4a','#c8a646','#3d7a9e','#8a5a44','#6b6b3e','#a3455c'];
 const ITEM_GRUPO = {};
 Object.entries(GRUPOS).forEach(([nome,chaves])=>chaves.forEach(k=>ITEM_GRUPO[k]=nome));
@@ -788,11 +801,26 @@ function gerarInsights(r){
   }
   const acima = Object.entries(r.grupos).filter(([,g])=>g.status==='acima').sort((a,b)=>b[1].delta_scha-a[1].delta_scha);
   acima.slice(0,3).forEach(([nome,g])=>{
-    ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia possível se ajustado).`]);
+    if(GRUPOS_ESTRUTURAIS.includes(nome)){
+      ins.push(['info', `${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média. Isso reflete o
+        valor das máquinas e/ou benfeitorias que você informou, não é um gasto pra cortar diretamente; revise apenas se o
+        valor do bem, a vida útil ou o residual informados estiverem incorretos.`]);
+    }else if(nome==='Outros Custos Fixos'){
+      ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da
+        média. Encargos Sociais é ajustável; Manutenção e Seguro do Capital Fixo refletem o valor das suas máquinas e
+        benfeitorias.`]);
+    }else{
+      ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia possível se ajustado).`]);
+    }
   });
   const abaixo = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
   abaixo.slice(0,2).forEach(([nome,g])=>{
-    ins.push(['ok', `${nome} está bem planejado: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+    if(GRUPOS_ESTRUTURAIS.includes(nome)){
+      ins.push(['ok', `${nome}: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média,
+        refletindo o valor das suas máquinas e/ou benfeitorias.`]);
+    }else{
+      ins.push(['ok', `${nome} está bem planejado: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+    }
   });
   const prod=r.produtividade, peqT=r.ponto_eq_total, peqO=r.ponto_eq_operacional, folga=prod-peqT;
   if(folga>=0){
@@ -853,10 +881,10 @@ function renderStep(){
       <div class="resumo-row"><span>Produtividade</span><b>${n1(lavoura.produtividade)} sc/ha</b></div>
       <div class="resumo-row"><span>Preço de venda</span><b>${brl(lavoura.preco)}/sc</b></div>
       <hr>
-      <div class="resumo-row"><span>Total custo variável previsto</span><b>${brl(totalGeral)}</b></div>
-      <div class="resumo-row"><span>Total custo fixo + oportunidade previsto</span><b>${brl(perHaTotal)}</b></div>
-      ${outrosValidos.length ? `<div class="resumo-row"><span>Outros custos (${outrosValidos.length} item${outrosValidos.length>1?'s':''})</span><b>${brl(outrosTotal)}</b></div>` : ''}
-      <div class="fhint" style="margin-top:10px">Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+      <div class="resumo-row"><span>Total custo variável previsto</span><b>${brl(totalGeral)}${lavoura.area?` <span style="font-weight:400;color:var(--tl)">(${brl(totalGeral/lavoura.area)}/ha)</span>`:''}</b></div>
+      <div class="resumo-row"><span>Total custo fixo + oportunidade previsto</span><b>${brl(perHaTotal)}${lavoura.area?` <span style="font-weight:400;color:var(--tl)">(${brl(perHaTotal/lavoura.area)}/ha)</span>`:''}</b></div>
+      ${outrosValidos.length ? `<div class="resumo-row"><span>Outros custos (${outrosValidos.length} item${outrosValidos.length>1?'s':''})</span><b>${brl(outrosTotal)}${lavoura.area?` <span style="font-weight:400;color:var(--tl)">(${brl(outrosTotal/lavoura.area)}/ha)</span>`:''}</b></div>` : ''}
+      <div class="fhint" style="margin-top:10px">Os valores acima são o <b>total para toda a área</b> (${n1(lavoura.area)} ha), com o equivalente em R$/ha entre parênteses. Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
     `;
   }else if(step.tipo==='maquinas'){
     const totalMaquinasCalc = totalOperacaoMaquinas(fasesMaquinas, lavoura.area||0);
@@ -871,15 +899,14 @@ function renderStep(){
         corrige o solo também puxa o pulverizador), cadastre-o em cada fase separadamente, com o mesmo "Valor do bem"
         nas duas, mas com a largura, velocidade e passadas daquela operação específica: o app distribui a depreciação,
         o seguro e a remuneração do capital proporcionalmente às horas de cada fase, sem contar o valor do veículo em dobro.</div>
-      <datalist id="dl-implementos">${IMPLEMENTOS_SUGERIDOS.map(i=>`<option value="${i}">`).join('')}</datalist>
-      <datalist id="dl-fases">${FASES_MAQUINAS_PADRAO.map(i=>`<option value="${i}">`).join('')}</datalist>
       ` + fasesMaquinas.map((fase,fi)=>`
       <div class="card" style="border-color:var(--gold-pale);margin-bottom:10px">
-        <div class="fg oc-row" style="margin-bottom:10px">
+        <div class="fg oc-row" style="margin-bottom:6px">
           <div class="oc-desc" style="flex:1"><label>Fase da produção</label>
-            <input type="text" id="fase-nome-${fi}" list="dl-fases" placeholder="Ex: Preparo do Solo" value="${fase.nome||''}"></div>
+            <input type="text" id="fase-nome-${fi}" placeholder="Ex: Preparo do Solo" value="${fase.nome||''}"></div>
           ${fasesMaquinas.length>1 ? `<button type="button" class="bsecondary oc-remove" onclick="removerFaseMaquina(${fi})">Remover fase</button>` : ''}
         </div>
+        <div class="chip-row" style="margin-bottom:10px">${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<button type="button" class="chip" onclick="preencherFaseMaquina(${fi},'${nomeFase.replace(/'/g,"\\'")}')">${nomeFase}</button>`).join('')}</div>
         ${fase.veiculos.map((v,vi)=>`
         <div class="item-card" style="background:var(--cream2)">
           <div class="item-top"><span class="item-name">Veículo ${vi+1}</span>
@@ -891,12 +918,12 @@ function renderStep(){
           <div class="fg"><label>Veículo/Modelo</label>
             <input type="text" id="veic-nome-${fi}-${vi}" placeholder="Ex: Trator Valtra BH180" value="${v.nome||''}"></div>
           <div class="fg"><label>Implemento</label>
-            <input type="text" id="veic-implemento-${fi}-${vi}" list="dl-implementos" placeholder="Ex: Pulverizador de Arrasto" value="${v.implemento||''}"></div>
-          <div class="fhint" style="margin-bottom:8px">O app não pergunta quanto você vai gastar com esse veículo: ele
-            <b>prevê</b> esse valor a partir dos dados técnicos abaixo, com a mesma fórmula da Metodologia da Aprosoja/MS
-            usada para calcular a própria média Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto somente se você
-            quiser essa previsão para este veículo; se deixar todos vazios, ele fica de fora do cálculo (tanto do custo
-            de operação quanto da depreciação, do seguro e da remuneração do capital fixo).</div>
+            <input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Ex: Pulverizador de Arrasto" value="${v.implemento||''}"></div>
+          <div class="chip-row" style="margin-bottom:8px">${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<button type="button" class="chip" onclick="preencherImplemento(${fi},${vi},'${nomeImp.replace(/'/g,"\\'")}')">${nomeImp}</button>`).join('')}</div>
+          <div class="fhint" style="margin-bottom:8px">Com os dados técnicos abaixo, o app já prevê o custo de operação
+            deste veículo (diesel, operador, manutenção) e sua depreciação, seguro e remuneração do capital fixo, com a
+            mesma fórmula da Metodologia da Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto: se deixar
+            todos vazios, o veículo fica de fora desses cálculos.</div>
           <div class="fg oc-row">
             <div class="oc-valor" style="flex:1"><label>Potência (cv) *</label>
               <input type="number" id="veic-potencia-${fi}-${vi}" inputmode="decimal" min="0" step="5" value="${v.potencia||''}"></div>
@@ -939,7 +966,7 @@ function renderStep(){
           <input type="text" id="oc-desc-${i}" placeholder="Ex: Arrendamento" value="${oc.descricao||''}"></div>
         <div class="oc-valor"><label>${i===0?'Valor':''}</label>
           <div style="display:flex;gap:4px">
-            <input type="number" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" min="0" step="${oc.unidade==='scha'?'0.5':'50'}" value="${oc.valor||''}">
+            <input type="number" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" min="0" step="${oc.unidade==='scha'?'0.5':'50'}" value="${oc.valor||''}" oninput="atualizarPreviewOutroCusto(${i})">
             <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 4px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
               <option value="total"${oc.unidade!=='scha'?' selected':''}>R$</option>
               <option value="scha"${oc.unidade==='scha'?' selected':''}>sc/ha</option>
@@ -947,8 +974,7 @@ function renderStep(){
           </div></div>
         <button type="button" class="bsecondary oc-remove" onclick="removerOutroCusto(${i})">Remover</button>
       </div>
-      ${oc.unidade==='scha'&&oc.valor>0 ? `<div class="fhint" style="margin:-4px 0 10px">≈ ${brl(outroCustoRha(oc,lavoura.area||0,lavoura.preco||0))}/ha,
-        ${brl(outroCustoTotalReais(oc,lavoura.area||0,lavoura.preco||0))} no total (convertido pelo preço de venda de ${brl(lavoura.preco||0)}/sc).</div>` : ''}`).join('') + `
+      <div class="fhint" id="oc-preview-${i}" style="margin:-4px 0 10px${textoPreviewOutroCusto(oc)?'':';display:none'}">${textoPreviewOutroCusto(oc)}</div>`).join('') + `
       <button type="button" class="bsecondary" style="width:100%;margin-top:6px" onclick="adicionarOutroCusto()">Adicionar outro custo</button>
     `;
   }else if(step.tipo==='benfeitorias'){
@@ -957,7 +983,6 @@ function renderStep(){
       <div class="fhint" style="margin-bottom:10px">Galpões, armazéns, cercas, poços etc. usados na produção. Com esses dados
         o app já calcula a depreciação e a manutenção das benfeitorias, além de somar ao seguro e à remuneração do capital
         fixo, junto com as máquinas. Campo opcional: deixe vazio para usar a média Aprosoja/MS nesses itens.</div>
-      <datalist id="dl-benfeitorias">${CATALOGO_BENFEITORIAS.map(i=>`<option value="${i.nome}">`).join('')}</datalist>
       ` + benfeitorias.map((b,bi)=>`
       <div class="item-card" style="background:var(--cream2)">
         <div class="item-top"><span class="item-name">Benfeitoria ${bi+1}</span>
@@ -1184,6 +1209,16 @@ function mudarTipoMaquina(fi,vi,tipoNome){
   if(cat){ v.vidaUtilAnos=cat.anos; v.vidaUtilHoras=cat.horas; v.residual=cat.residual; }
   renderStep();
 }
+function preencherFaseMaquina(fi,nome){
+  lerCamposEtapa();
+  fasesMaquinas[fi].nome = nome;
+  renderStep();
+}
+function preencherImplemento(fi,vi,nome){
+  lerCamposEtapa();
+  fasesMaquinas[fi].veiculos[vi].implemento = nome;
+  renderStep();
+}
 function adicionarBenfeitoria(){
   lerCamposEtapa();
   benfeitorias.push(novaBenfeitoria());
@@ -1216,6 +1251,20 @@ function mudarUnidadeOutroCusto(i,unidade){
   lerCamposEtapa();
   outrosCustos[i].unidade = unidade;
   renderStep();
+}
+function textoPreviewOutroCusto(oc){
+  if(oc.unidade!=='scha' || !(oc.valor>0)) return '';
+  return `≈ ${brl(outroCustoRha(oc,lavoura.area||0,lavoura.preco||0))}/ha, `+
+    `${brl(outroCustoTotalReais(oc,lavoura.area||0,lavoura.preco||0))} no total para ${n1(lavoura.area||0)} ha `+
+    `(convertido pelo preço de venda de ${brl(lavoura.preco||0)}/sc).`;
+}
+function atualizarPreviewOutroCusto(i){
+  const vEl = document.getElementById('oc-valor-'+i), prevEl = document.getElementById('oc-preview-'+i);
+  if(!vEl || !prevEl) return;
+  outrosCustos[i].valor = parseFloat(vEl.value)||0;
+  const texto = textoPreviewOutroCusto(outrosCustos[i]);
+  prevEl.innerHTML = texto;
+  prevEl.style.display = texto ? '' : 'none';
 }
 
 // ─── RELATÓRIO ──────────────────────────────────────────────────────────────────
@@ -1441,16 +1490,22 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
       </table>
     </div>`;
 
-  const economiaTexto = acimaOrd.length ? `Antes de plantar, vale revisar ${acimaOrd.slice(0,2).map(([nome])=>`<b>${nome}</b>`).join(' e ')}:
-    ${acimaOrd.slice(0,2).map(([nome,g])=>`${nome} está prevista ${(g.delta_pct*100).toFixed(0)}% acima da média, um potencial
+  const acimaAcionavel = acimaOrd.filter(([nome])=>!GRUPOS_ESTRUTURAIS.includes(nome));
+  const abaixoAcionavel = abaixoOrd.filter(([nome])=>!GRUPOS_ESTRUTURAIS.includes(nome));
+  const acimaEstrutural = acimaOrd.filter(([nome])=>GRUPOS_ESTRUTURAIS.includes(nome));
+  const economiaTexto = acimaAcionavel.length ? `Antes de plantar, vale revisar ${acimaAcionavel.slice(0,2).map(([nome])=>`<b>${nome}</b>`).join(' e ')}:
+    ${acimaAcionavel.slice(0,2).map(([nome,g])=>`${nome} está prevista ${(g.delta_pct*100).toFixed(0)}% acima da média, um potencial
     de economia de ${Math.abs(g.delta_scha).toFixed(1)} sc/ha se ajustada para a média Aprosoja/MS`).join('; ')}.` : '';
-  const pontoForteTexto = abaixoOrd.length ? `Já ${abaixoOrd.slice(0,1).map(([nome])=>`<b>${nome}</b>`).join('')} está prevista
-    ${Math.abs(abaixoOrd[0][1].delta_pct*100).toFixed(0)}% abaixo da média, um ponto forte do planejamento que vale manter.` : '';
+  const estruturalTexto = acimaEstrutural.length ? ` ${acimaEstrutural.map(([nome])=>`<b>${nome}</b>`).join(' e ')}
+    ${acimaEstrutural.length>1?'estão':'está'} acima da média, mas isso reflete o valor das máquinas e/ou benfeitorias
+    informadas, não é um gasto para cortar diretamente.` : '';
+  const pontoForteTexto = abaixoAcionavel.length ? `Já ${abaixoAcionavel.slice(0,1).map(([nome])=>`<b>${nome}</b>`).join('')} está prevista
+    ${Math.abs(abaixoAcionavel[0][1].delta_pct*100).toFixed(0)}% abaixo da média, um ponto forte do planejamento que vale manter.` : '';
   const conclusaoTexto = ct.status==='acima'
-    ? `O custo total previsto está acima da média regional. ${economiaTexto} ${pontoForteTexto}`
+    ? `O custo total previsto está acima da média regional. ${economiaTexto}${estruturalTexto} ${pontoForteTexto}`
     : ct.status==='abaixo'
-    ? `O custo total previsto já está abaixo da média regional, um bom indício para a safra. ${pontoForteTexto} ${economiaTexto}`
-    : `O custo total previsto está em linha com a média regional. ${economiaTexto} ${pontoForteTexto}`;
+    ? `O custo total previsto já está abaixo da média regional, um bom indício para a safra. ${pontoForteTexto} ${economiaTexto}${estruturalTexto}`
+    : `O custo total previsto está em linha com a média regional. ${economiaTexto}${estruturalTexto} ${pontoForteTexto}`;
   const secConclusao = `
     <div class="pdf-sec">
       <div class="pdf-h2">9. Conclusão</div>
@@ -1626,9 +1681,10 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
       <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
     </div>
 
-    <button class="bprimary no-print" onclick="novoCalculo()">Novo Cálculo</button>
+    <button class="bprimary no-print" onclick="editarCalculo()">Corrigir alguma resposta</button>
     <button class="bsecondary no-print" style="width:100%;margin-top:8px" onclick="baixarPdfRelatorio()">Baixar PDF do Relatório</button>
     <button class="bghost no-print" style="width:100%;margin-top:2px" onclick="compartilharResultado()">Compartilhar resumo em texto</button>
+    <button class="bghost no-print" style="width:100%;margin-top:2px" onclick="novoCalculo()">Começar um cálculo novo do zero</button>
   `;
   document.getElementById('wizard').style.display='none';
   view.style.display='block';
@@ -1656,6 +1712,15 @@ async function calcularESalvar(){
   if(online) syncPendentes();
 }
 
+function editarCalculo(){
+  stepIdx = STEPS.length-1; // volta pra Revisão, com tudo o que já foi preenchido intacto
+  document.getElementById('report-view').style.display='none';
+  document.getElementById('report-view').innerHTML='';
+  document.getElementById('wizard').style.display='block';
+  renderStep();
+  window.scrollTo({top:0,behavior:'smooth'});
+  showToast('Use "Voltar" para corrigir qualquer etapa. Nada do que você já preencheu foi apagado.');
+}
 function novoCalculo(){
   valores={}; CAMPOS_TOTAL.forEach(k=>valores[k]=0); CAMPOS_POR_HA.forEach(k=>valores[k]=0);
   lavoura={produtor:'',municipio:'',area:0,produtividade:REF?0:0,preco:REF?REF.preco_medio:0};
