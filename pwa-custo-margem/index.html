@@ -516,78 +516,98 @@ CAMPOS_POR_HA.forEach(k=>valores[k]=0);
 let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
 let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
 
-// ─── OPERAÇÃO DE MÁQUINAS (fases → veículos) ───────────────────────────────────
+// ─── OPERAÇÃO DE MÁQUINAS (máquina → usos) ──────────────────────────────────────
+// Base é a máquina (cadastrada uma vez, com seus próprios dados técnicos e
+// patrimoniais), não a fase — cada máquina pode ter vários "usos" (uma
+// combinação de fase + implemento + especificações daquela aplicação),
+// adicionados um a um, sem precisar redigitar potência/valor do bem/tipo
+// de novo a cada fase em que a mesma máquina trabalha.
 const FASES_MAQUINAS_PADRAO = ['Preparo do Solo', 'Plantio', 'Tratos Culturais (Pulverizações)', 'Colheita'];
 const IMPLEMENTOS_SUGERIDOS = ['Grade Niveladora','Grade Aradora','Subsolador','Plantadeira/Semeadora',
   'Pulverizador Autopropelido','Pulverizador de Arrasto','Distribuidor de Calcário/Fertilizante',
   'Plataforma de Colheita','Carreta Graneleira','Roçadeira'];
 
-// Vida útil (anos/horas) e valor residual (%) por tipo de bem, conforme a
-// Metodologia de Custo de Produção da Aprosoja/MS, Anexos I e II, recorte
-// dos equipamentos usados na produção de soja. "Outro" fica livre pro
-// produtor/técnico digitar os próprios parâmetros quando o bem não está
-// nesta lista.
+// Tipos de máquina autopropelida e a vida útil (anos/horas) e valor residual (%)
+// de cada um, conforme a Metodologia de Custo de Produção da Aprosoja/MS,
+// Anexo I. Os tipos em si (Trator/Pulverizador Autopropelido/Colheitadeira)
+// seguem a planilha "Máquinas formulário" (aba "choices"), que também dá as
+// listas de marca e modelo por tipo (ver MARCAS_MODELOS, carregado à parte).
 const CATALOGO_MAQUINAS = [
   {nome:'Trator', anos:10, horas:15000, residual:0.20},
-  {nome:'Colhedora', anos:10, horas:5000, residual:0.25},
   {nome:'Pulverizador Autopropelido', anos:10, horas:10000, residual:0.20},
-  {nome:'Pulverizador de Arrasto', anos:8, horas:2000, residual:0.05},
-  {nome:'Plantadeira/Semeadora', anos:15, horas:1200, residual:0.20},
-  {nome:'Grade Aradora/Niveladora', anos:15, horas:2500, residual:0.05},
-  {nome:'Subsolador', anos:15, horas:2500, residual:0.05},
-  {nome:'Distribuidor de Calcário/Fertilizante', anos:10, horas:2000, residual:0.05},
-  {nome:'Plataforma de Colheita (Grãos)', anos:10, horas:5000, residual:0.25},
-  {nome:'Carreta Graneleira', anos:15, horas:5000, residual:0.05},
-  {nome:'Roçadeira', anos:12, horas:2500, residual:0.05},
-  {nome:'Caminhão', anos:10, horas:12000, residual:0.25},
-  {nome:'Outro (personalizado)', anos:10, horas:5000, residual:0.20},
+  {nome:'Colheitadeira', anos:10, horas:5000, residual:0.25},
 ];
-function novaFaseMaquina(nome){ return {nome:nome||'', veiculos:[novoVeiculoMaquina()]}; }
-function novoVeiculoMaquina(){
-  const c = CATALOGO_MAQUINAS[0];
-  return {nome:'', tipo:c.nome, potencia:0, implemento:'', passadas:0,
-    valorBem:0, largura:0, velocidade:0, vidaUtilAnos:c.anos, vidaUtilHoras:c.horas, residual:c.residual};
+const CAMINHO_MARCAS_MODELOS = 'maquinas_marcas_modelos.json';
+let MARCAS_MODELOS = null; // {Tipo: {MARCA: [modelos...]}}, carregado no init()
+async function carregarMarcasModelos(){
+  try{
+    const r = await fetch('./'+CAMINHO_MARCAS_MODELOS, {cache:'no-cache'});
+    MARCAS_MODELOS = await r.json();
+  }catch(e){
+    try{ MARCAS_MODELOS = JSON.parse(localStorage.getItem('marcas_modelos_cache')); }catch(_){}
+  }
+  if(MARCAS_MODELOS) localStorage.setItem('marcas_modelos_cache', JSON.stringify(MARCAS_MODELOS));
+  if(stepIdx!=null && STEPS[stepIdx] && STEPS[stepIdx].tipo==='maquinas') renderStep();
+  return MARCAS_MODELOS;
 }
-let fasesMaquinas = FASES_MAQUINAS_PADRAO.map(novaFaseMaquina);
+function marcasDisponiveis(tipo){
+  if(!MARCAS_MODELOS || !MARCAS_MODELOS[tipo]) return [];
+  return Object.keys(MARCAS_MODELOS[tipo]).sort();
+}
+function modelosDisponiveis(tipo, marca){
+  if(!MARCAS_MODELOS || !MARCAS_MODELOS[tipo] || !marca) return [];
+  const porTipo = MARCAS_MODELOS[tipo];
+  return porTipo[marca] || porTipo[(marca||'').toUpperCase()] || [];
+}
+
+function novaMaquina(){
+  const c = CATALOGO_MAQUINAS[0];
+  return {tipo:c.nome, marca:'', modelo:'', potencia:0, valorBem:0,
+    vidaUtilAnos:c.anos, vidaUtilHoras:c.horas, residual:c.residual,
+    usos:[novoUsoMaquina()]};
+}
+function novoUsoMaquina(){ return {fase:'', implemento:'', largura:0, velocidade:0, passadas:0}; }
+let maquinas = [];
 
 // Horas trabalhadas por hectare, na safra: mesma fórmula da Metodologia da Aprosoja/MS
 // (Cap. IV, item 3.1) e da planilha oficial Aprosoja/MS (aba "I.1 Custo de Op.
 // de Maquinas", coluna "h/ha"). Não é perguntado ao produtor, é derivado da
-// largura de trabalho, velocidade e nº de passadas que ele já informa.
+// largura de trabalho, velocidade e nº de passadas que ele já informa para
+// aquele uso específico da máquina.
 const EFICIENCIA_OPERACIONAL_PADRAO = 0.75; // 75%, mesmo valor usado nos 3 exemplos da planilha oficial
-function horasHaVeiculo(v){
-  if(!v.largura || !v.velocidade || !v.passadas) return 0;
-  const hPorPassada = 1/((v.largura*v.velocidade*EFICIENCIA_OPERACIONAL_PADRAO)/10);
-  return hPorPassada*v.passadas;
+function horasHaUso(u){
+  if(!u.largura || !u.velocidade || !u.passadas) return 0;
+  const hPorPassada = 1/((u.largura*u.velocidade*EFICIENCIA_OPERACIONAL_PADRAO)/10);
+  return hPorPassada*u.passadas;
 }
 
 // Custo de operação de máquinas (R$), previsto para a safra: o produtor não
 // gasta esse valor "de cabeça" antes de plantar, então em vez de perguntar
-// um total, o app prevê a partir de dados técnicos do veículo (potência,
-// valor do bem, largura, velocidade, passadas), seguindo a Metodologia de
-// Custo de Produção da Aprosoja/MS (Cap. IV, item 3), a mesma usada para
-// calcular a própria média Aprosoja/MS: diesel + lubrificação + operador +
-// manutenção da máquina, por hora, multiplicado pelas horas trabalhadas na
-// safra. Não inclui manutenção de implemento (exigiria pedir o valor do
-// implemento à parte).
+// um total, o app prevê a partir de dados técnicos da máquina (potência,
+// valor do bem) e de cada uso (largura, velocidade, passadas), seguindo a
+// Metodologia de Custo de Produção da Aprosoja/MS (Cap. IV, item 3), a mesma
+// usada para calcular a própria média Aprosoja/MS: diesel + lubrificação +
+// operador + manutenção da máquina, por hora, multiplicado pelas horas
+// trabalhadas naquele uso. Não inclui manutenção de implemento (exigiria
+// pedir o valor do implemento à parte).
 const ENCARGOS_OPERADOR_SAFRA = 0.3731; // 37,31%, encargos sobre contrato-safra (Metodologia da Aprosoja/MS, Anexo V)
-function custoOperacaoVeiculo(v, area){
-  const horasHa = horasHaVeiculo(v);
+function custoOperacaoUso(m, u, area){
+  const horasHa = horasHaUso(u);
   if(!horasHa || !area) return {custoHora:0, rha:0, total:0};
   const precoDiesel = (REF && REF.preco_diesel) || PRECO_DIESEL_RESERVA;
   const salarioOperador = (REF && REF.salario_medio_operador) || SALARIO_OPERADOR_RESERVA;
-  const dieselH = (v.potencia||0)*0.12*precoDiesel;
+  const dieselH = (m.potencia||0)*0.12*precoDiesel;
   const lubrifH = dieselH*0.01;
   const operadorH = (salarioOperador*(1+ENCARGOS_OPERADOR_SAFRA))/220;
-  const horasAno = v.vidaUtilHoras/(v.vidaUtilAnos||1);
-  const manutMaquinaH = v.valorBem ? (v.valorBem*0.01)/horasAno : 0;
+  const horasAno = m.vidaUtilHoras/(m.vidaUtilAnos||1);
+  const manutMaquinaH = m.valorBem ? (m.valorBem*0.01)/horasAno : 0;
   const custoHora = dieselH+lubrifH+operadorH+manutMaquinaH;
   const rha = horasHa*custoHora;
   return {custoHora, rha, total: rha*area};
 }
-function totalOperacaoMaquinas(fasesMaq, area){
+function totalOperacaoMaquinas(maquinasList, area){
   let total = 0;
-  (fasesMaq||[]).forEach(fase=>(fase.veiculos||[]).forEach(v=>{ total += custoOperacaoVeiculo(v, area).total; }));
+  (maquinasList||[]).forEach(m=>(m.usos||[]).forEach(u=>{ total += custoOperacaoUso(m, u, area).total; }));
   return total;
 }
 
@@ -626,17 +646,17 @@ const SALARIO_OPERADOR_RESERVA = 2612.79; // R$/mês (CAGED), mesmo valor da pla
 const CAMPOS_AUTOCALCULADOS = ['deprec_benfeit','deprec_maquinas','manut_periodica','seguro_capital','renda_fatores'];
 
 function taxaRendaFatoresAtual(){ return (REF && REF.taxa_poupanca_anual) || TAXA_RENDA_FATORES_RESERVA; }
-function calcularCustosMaquinas(fasesMaq){
+function calcularCustosMaquinas(maquinasList){
   let deprec=0, seguro=0, renda=0;
   const taxaRenda = taxaRendaFatoresAtual();
-  (fasesMaq||[]).forEach(fase=>(fase.veiculos||[]).forEach(v=>{
-    const horasHa = horasHaVeiculo(v);
-    if(!v.valorBem || !v.vidaUtilHoras || !horasHa) return;
-    const residual = v.residual||0;
-    const horasAno = v.vidaUtilHoras/(v.vidaUtilAnos||1);
-    deprec += v.valorBem*(1-residual)*horasHa/v.vidaUtilHoras;
-    seguro += (v.valorBem/2)*TAXA_SEGURO_CAPITAL*horasHa/horasAno;
-    renda  += (v.valorBem/2)*taxaRenda*horasHa/horasAno;
+  (maquinasList||[]).forEach(m=>(m.usos||[]).forEach(u=>{
+    const horasHa = horasHaUso(u);
+    if(!m.valorBem || !m.vidaUtilHoras || !horasHa) return;
+    const residual = m.residual||0;
+    const horasAno = m.vidaUtilHoras/(m.vidaUtilAnos||1);
+    deprec += m.valorBem*(1-residual)*horasHa/m.vidaUtilHoras;
+    seguro += (m.valorBem/2)*TAXA_SEGURO_CAPITAL*horasHa/horasAno;
+    renda  += (m.valorBem/2)*taxaRenda*horasHa/horasAno;
   }));
   return {deprec, seguro, renda};
 }
@@ -655,8 +675,8 @@ function calcularCustosBenfeitorias(benf, area){
   });
   return {deprec, manut, seguro, renda};
 }
-function calcularCustosFixosCapital(fasesMaq, benf, area){
-  const maq = calcularCustosMaquinas(fasesMaq);
+function calcularCustosFixosCapital(maquinasList, benf, area){
+  const maq = calcularCustosMaquinas(maquinasList);
   const ben = calcularCustosBenfeitorias(benf, area);
   return {
     deprec_maquinas: maq.deprec, deprec_benfeit: ben.deprec, manut_periodica: ben.manut,
@@ -668,6 +688,26 @@ function calcularCustosFixosCapital(fasesMaq, benf, area){
 const brl = (v,dec=2)=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
 const n1 = v=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const pct0 = v=>((v||0)*100).toFixed(0)+'%';
+
+// ─── NÚMEROS NO MODELO BRASILEIRO (vírgula decimal) ────────────────────────────
+// Todos os campos numéricos do assistente são <input type="text" inputmode="decimal">
+// (não type="number", que só aceita ponto decimal e rejeita vírgula em vários
+// navegadores/teclados) — parseBR() lê o texto digitado pelo produtor
+// (aceita "1.234,56", "15,5" ou "15.5") e fmtBR() devolve o valor salvo
+// formatado com vírgula pra reexibir no campo.
+function parseBR(str){
+  if(str==null) return 0;
+  let s = String(str).trim();
+  if(!s) return 0;
+  if(s.includes(',')) s = s.replace(/\./g,'').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function fmtBR(num){
+  if(!num) return '';
+  const s = (Math.round(num*10000)/10000).toString();
+  return s.replace('.', ',');
+}
 
 // ─── REFERÊNCIA ───────────────────────────────────────────────────────────────
 async function carregarReferencia(){
@@ -852,11 +892,11 @@ function renderStep(){
           MUNICIPIOS_MS.map(m=>`<option value="${m}"${m===lavoura.municipio?' selected':''}>${m}</option>`)
         ).join('')}</select></div>
       <div class="fg"><label>Área (ha) *</label>
-        <input type="number" id="f-area" inputmode="decimal" min="0" step="1" placeholder="0" value="${lavoura.area||''}"></div>
+        <input type="text" id="f-area" inputmode="decimal" placeholder="0" value="${fmtBR(lavoura.area)}"></div>
       <div class="fg"><label>Produtividade (sc/ha) *</label>
-        <input type="number" id="f-produtividade" inputmode="decimal" min="0" step="0.5" placeholder="0" value="${lavoura.produtividade||''}"></div>
+        <input type="text" id="f-produtividade" inputmode="decimal" placeholder="0" value="${fmtBR(lavoura.produtividade)}"></div>
       <div class="fg"><label>Preço de venda (R$/sc) *</label>
-        <input type="number" id="f-preco" inputmode="decimal" min="0" step="0.5" value="${lavoura.preco||''}">
+        <input type="text" id="f-preco" inputmode="decimal" value="${fmtBR(lavoura.preco)}">
         <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'-'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
     `;
   }else if(step.tipo==='revisao'){
@@ -880,78 +920,87 @@ function renderStep(){
       <div class="fhint" style="margin-top:10px">Os valores acima são o <b>total para toda a área</b> (${n1(lavoura.area)} ha), com o equivalente em R$/ha entre parênteses. Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
     `;
   }else if(step.tipo==='maquinas'){
-    const totalMaquinasCalc = totalOperacaoMaquinas(fasesMaquinas, lavoura.area||0);
+    const totalMaquinasCalc = totalOperacaoMaquinas(maquinas, lavoura.area||0);
     const usandoRefMaquinas = !totalMaquinasCalc;
     const totalMaquinas = usandoRefMaquinas ? REF.itens.op_maquinas.rha*(lavoura.area||0) : totalMaquinasCalc;
     c.innerHTML = `
       <div class="stitle">Operação de Máquinas</div>
-      <div class="fhint" style="margin-bottom:10px">Para cada fase da produção, informe os veículos/máquinas que vão ser
-        usados (próprios ou contratados): potência, implemento acoplado e número de passadas previsto na lavoura ao
-        longo de <b>toda a safra</b>. O app prevê o custo de operação a partir desses dados técnicos, você não precisa
-        saber de antemão quanto vai gastar. Se o <b>mesmo veículo</b> for usado em mais de uma fase (ex.: o trator que
-        corrige o solo também puxa o pulverizador), cadastre-o em cada fase separadamente, com o mesmo "Valor do bem"
-        nas duas, mas com a largura, velocidade e passadas daquela operação específica: o app distribui a depreciação,
-        o seguro e a remuneração do capital proporcionalmente às horas de cada fase, sem contar o valor do veículo em dobro.</div>
-      ` + fasesMaquinas.map((fase,fi)=>`
+      <div class="fhint" style="margin-bottom:10px">Cadastre cada máquina autopropelida (trator, pulverizador
+        autopropelido, colheitadeira) uma única vez, com os dados técnicos e patrimoniais dela. Depois, adicione um
+        <b>uso</b> para cada fase em que ela trabalha (implemento, largura, velocidade e passadas daquela aplicação) —
+        assim, se a mesma máquina corrige o solo e também pulveriza, você não redigita potência/valor do bem duas
+        vezes. O app prevê o custo de operação e a depreciação/seguro/remuneração do capital fixo a partir desses
+        dados técnicos, você não precisa saber de antemão quanto vai gastar.</div>
+      ` + maquinas.map((m,mi)=>`
       <div class="card" style="border-color:var(--gold-pale);margin-bottom:10px">
-        <div class="fg oc-row" style="margin-bottom:6px">
-          <div class="oc-desc" style="flex:1"><label>Fase da produção</label>
-            <select id="fase-sel-${fi}" onchange="preencherFaseTexto(${fi},this.value)">
-              <option value="">Selecionar fase padrão...</option>
-              ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${fase.nome===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
+        <div class="item-top"><span class="item-name">Máquina ${mi+1}</span>
+          ${maquinas.length>1 ? `<button type="button" class="bghost" style="padding:2px 4px" onclick="removerMaquina(${mi})">Remover</button>` : ''}</div>
+        <div class="fg"><label>Tipo de máquina</label>
+          <select id="maq-tipo-${mi}" onchange="mudarTipoMaquina(${mi},this.value)">
+            ${CATALOGO_MAQUINAS.map(cM=>`<option value="${cM.nome}"${cM.nome===m.tipo?' selected':''}>${cM.nome}</option>`).join('')}
+          </select></div>
+        <div class="fg oc-row">
+          <div class="oc-valor" style="flex:1"><label>Marca</label>
+            <select id="maq-marca-sel-${mi}" onchange="mudarMarcaMaquina(${mi},this.value)">
+              <option value="">${MARCAS_MODELOS?'Selecionar marca...':'Carregando marcas...'}</option>
+              ${marcasDisponiveis(m.tipo).map(marca=>`<option value="${marca}"${m.marca===marca?' selected':''}>${marca}</option>`).join('')}
             </select>
-            <input type="text" id="fase-nome-${fi}" placeholder="Nome da fase" value="${fase.nome||''}" style="margin-top:6px"></div>
-          ${fasesMaquinas.length>1 ? `<button type="button" class="bsecondary oc-remove" onclick="removerFaseMaquina(${fi})">Remover fase</button>` : ''}
+            <input type="text" id="maq-marca-${mi}" placeholder="Marca" value="${m.marca||''}" style="margin-top:6px"></div>
+          <div class="oc-valor" style="flex:1"><label>Modelo</label>
+            <select id="maq-modelo-sel-${mi}" onchange="mudarModeloMaquina(${mi},this.value)">
+              <option value="">${MARCAS_MODELOS?'Selecionar modelo...':'Carregando modelos...'}</option>
+              ${modelosDisponiveis(m.tipo,m.marca).map(modelo=>`<option value="${modelo}"${m.modelo===modelo?' selected':''}>${modelo}</option>`).join('')}
+            </select>
+            <input type="text" id="maq-modelo-${mi}" placeholder="Modelo" value="${m.modelo||''}" style="margin-top:6px"></div>
         </div>
-        ${fase.veiculos.map((v,vi)=>`
+        <div class="fg"><label>Valor do bem (R$) *</label>
+          <input type="text" id="maq-valorbem-${mi}" inputmode="decimal" value="${fmtBR(m.valorBem)}">
+          <div class="fhint">Valor de mercado/aquisição da máquina (patrimônio), não o gasto previsto da safra.</div></div>
+        <div class="fg"><label>Potência (cv) *</label>
+          <input type="text" id="maq-potencia-${mi}" inputmode="decimal" value="${fmtBR(m.potencia)}"></div>
+        <div class="fhint" style="margin-bottom:8px">Vida útil: ${n1(m.vidaUtilAnos)} anos (${n1(m.vidaUtilHoras)} h).
+          Residual: ${((m.residual||0)*100).toFixed(0)}% (${m.tipo}, Metodologia Aprosoja/MS).</div>
+        <hr style="margin:10px 0">
+        <div class="fhint" style="margin-bottom:8px">Onde essa máquina foi usada: um "uso" por fase/implemento. Os
+          campos com <b>*</b> são obrigatórios em conjunto se você preencheu Valor do bem/Potência acima; se deixar
+          um uso vazio, ele fica de fora do cálculo.</div>
+        ${m.usos.map((u,ui)=>`
         <div class="item-card" style="background:var(--cream2)">
-          <div class="item-top"><span class="item-name">Veículo ${vi+1}</span>
-            ${fase.veiculos.length>1 ? `<button type="button" class="bghost" style="padding:2px 4px" onclick="removerVeiculoMaquina(${fi},${vi})">Remover</button>` : ''}</div>
-          <div class="fg"><label>Tipo de máquina</label>
-            <select id="veic-tipo-${fi}-${vi}" onchange="mudarTipoMaquina(${fi},${vi},this.value)">
-              ${CATALOGO_MAQUINAS.map(cM=>`<option value="${cM.nome}"${cM.nome===v.tipo?' selected':''}>${cM.nome}</option>`).join('')}
-            </select></div>
-          <div class="fg"><label>Veículo/Modelo</label>
-            <input type="text" id="veic-nome-${fi}-${vi}" placeholder="Ex: Trator Valtra BH180" value="${v.nome||''}"></div>
-          <div class="fg"><label>Implemento</label>
-            <select id="veic-implemento-sel-${fi}-${vi}" onchange="preencherImplementoTexto(${fi},${vi},this.value)">
-              <option value="">Selecionar implemento sugerido...</option>
-              ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${v.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
+          <div class="item-top"><span class="item-name">Uso ${ui+1}</span>
+            ${m.usos.length>1 ? `<button type="button" class="bghost" style="padding:2px 4px" onclick="removerUsoMaquina(${mi},${ui})">Remover</button>` : ''}</div>
+          <div class="fg"><label>Fase da produção</label>
+            <select id="uso-fase-sel-${mi}-${ui}" onchange="preencherFaseTexto(${mi},${ui},this.value)">
+              <option value="">Selecionar fase padrão...</option>
+              ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${u.fase===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
             </select>
-            <input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Nome do implemento" value="${v.implemento||''}" style="margin-top:6px"></div>
-          <div class="fhint" style="margin-bottom:8px">Com os dados técnicos abaixo, o app já prevê o custo de operação
-            deste veículo (diesel, operador, manutenção) e sua depreciação, seguro e remuneração do capital fixo, com a
-            mesma fórmula da Metodologia da Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto: se deixar
-            todos vazios, o veículo fica de fora desses cálculos.</div>
-          <div class="fg oc-row">
-            <div class="oc-valor" style="flex:1"><label>Potência (cv) *</label>
-              <input type="number" id="veic-potencia-${fi}-${vi}" inputmode="decimal" min="0" step="5" value="${v.potencia||''}"></div>
-            <div class="oc-valor" style="flex:1"><label>Passadas na safra *</label>
-              <input type="number" id="veic-passadas-${fi}-${vi}" inputmode="decimal" min="0" step="1" value="${v.passadas||''}"></div>
-          </div>
-          <div class="fg"><label>Valor do bem (R$) *</label>
-            <input type="number" id="veic-valorbem-${fi}-${vi}" inputmode="decimal" min="0" step="1000" value="${v.valorBem||''}">
-            <div class="fhint">Valor de mercado/aquisição do veículo (patrimônio), não o gasto previsto da safra.</div></div>
+            <input type="text" id="uso-fase-${mi}-${ui}" placeholder="Nome da fase" value="${u.fase||''}" style="margin-top:6px"></div>
+          <div class="fg"><label>Implemento</label>
+            <select id="uso-implemento-sel-${mi}-${ui}" onchange="preencherImplementoTexto(${mi},${ui},this.value)">
+              <option value="">Selecionar implemento sugerido...</option>
+              ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${u.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
+            </select>
+            <input type="text" id="uso-implemento-${mi}-${ui}" placeholder="Nome do implemento" value="${u.implemento||''}" style="margin-top:6px"></div>
           <div class="fg oc-row">
             <div class="oc-valor" style="flex:1"><label>Largura de trabalho (m) *</label>
-              <input type="number" id="veic-largura-${fi}-${vi}" inputmode="decimal" min="0" step="0.5" value="${v.largura||''}"></div>
+              <input type="text" id="uso-largura-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.largura)}"></div>
             <div class="oc-valor" style="flex:1"><label>Velocidade (km/h) *</label>
-              <input type="number" id="veic-velocidade-${fi}-${vi}" inputmode="decimal" min="0" step="0.5" value="${v.velocidade||''}"></div>
+              <input type="text" id="uso-velocidade-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.velocidade)}"></div>
           </div>
+          <div class="fg"><label>Passadas na safra *</label>
+            <input type="text" id="uso-passadas-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.passadas)}"></div>
           ${(()=>{
-            const c = custoOperacaoVeiculo(v, lavoura.area||0);
+            const c = custoOperacaoUso(m, u, lavoura.area||0);
             if(!c.total) return '';
-            return `<div class="fhint">Custo de operação previsto: <b>${brl(c.total)}</b> (${brl(c.rha)}/ha) · ≈ ${n1(horasHaVeiculo(v))} h/ha na safra.
-              Vida útil: ${n1(v.vidaUtilAnos)} anos (${n1(v.vidaUtilHoras)} h) · Residual: ${((v.residual||0)*100).toFixed(0)}% (${v.tipo}, Metodologia Aprosoja/MS).</div>`;
+            return `<div class="fhint">Custo de operação previsto: <b>${brl(c.total)}</b> (${brl(c.rha)}/ha) · ≈ ${n1(horasHaUso(u))} h/ha na safra.</div>`;
           })()}
         </div>`).join('')}
-        <button type="button" class="bsecondary" style="width:100%" onclick="adicionarVeiculoMaquina(${fi})">Adicionar veículo nesta fase</button>
+        <button type="button" class="bsecondary" style="width:100%" onclick="adicionarUsoMaquina(${mi})">Adicionar uso desta máquina (outra fase/implemento)</button>
       </div>`).join('') + `
-      <button type="button" class="bsecondary" style="width:100%;margin-bottom:12px" onclick="adicionarFaseMaquina()">Adicionar nova fase da produção</button>
+      <button type="button" class="bsecondary" style="width:100%;margin-bottom:12px" onclick="adicionarMaquina()">Adicionar máquina</button>
       <div class="resumo-row"><span>Total previsto de Operação de Máquinas</span><b>${brl(totalMaquinas)}</b></div>
       <div class="fhint">${usandoRefMaquinas
-        ? 'Nenhum veículo com dados completos: usando a média Aprosoja/MS para o total.'
-        : 'Calculado a partir dos dados técnicos dos veículos informados acima.'}</div>
+        ? 'Nenhuma máquina com dados completos: usando a média Aprosoja/MS para o total.'
+        : 'Calculado a partir dos dados técnicos das máquinas informadas acima.'}</div>
     `;
   }else if(step.tipo==='outros_custos'){
     c.innerHTML = `
@@ -965,7 +1014,7 @@ function renderStep(){
           <input type="text" id="oc-desc-${i}" placeholder="Ex: Arrendamento" value="${oc.descricao||''}"></div>
         <div class="oc-valor"><label>${i===0?'Valor':''}</label>
           <div style="display:flex;gap:4px">
-            <input type="number" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" min="0" step="${oc.unidade==='scha'?'0.5':'50'}" value="${oc.valor||''}" oninput="atualizarPreviewOutroCusto(${i})">
+            <input type="text" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" value="${fmtBR(oc.valor)}" oninput="atualizarPreviewOutroCusto(${i})">
             <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 4px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
               <option value="total"${oc.unidade!=='scha'?' selected':''}>R$</option>
               <option value="scha"${oc.unidade==='scha'?' selected':''}>sc/ha</option>
@@ -994,9 +1043,9 @@ function renderStep(){
           <input type="text" id="benf-nome-${bi}" placeholder="Ex: Galpão de Máquinas" value="${b.nome||''}"></div>
         <div class="fg oc-row">
           <div class="oc-valor" style="flex:1"><label>Valor do bem (R$) *</label>
-            <input type="number" id="benf-valor-${bi}" inputmode="decimal" min="0" step="1000" value="${b.valor||''}"></div>
+            <input type="text" id="benf-valor-${bi}" inputmode="decimal" value="${fmtBR(b.valor)}"></div>
           <div class="oc-valor" style="flex:1"><label>% de Ocupação *</label>
-            <input type="number" id="benf-ocupacao-${bi}" inputmode="decimal" min="0" max="100" step="5" value="${(b.ocupacao!=null?b.ocupacao:1)*100}"></div>
+            <input type="text" id="benf-ocupacao-${bi}" inputmode="decimal" value="${fmtBR((b.ocupacao!=null?b.ocupacao:1)*100)}"></div>
         </div>
         <div class="fhint">* Obrigatórios em conjunto somente se quiser calcular depreciação, seguro e remuneração desta
           benfeitoria; senão, deixe os dois vazios. Vida útil: ${n1(b.vidaUtilAnos)} anos. Residual: ${((b.residual||0)*100).toFixed(0)}%
@@ -1022,7 +1071,7 @@ function renderStep(){
       `<div class="fhint" style="margin-bottom:10px">${hintTopo}</div>` +
       step.campos.map(k=>{
         if(CAMPOS_AUTOCALCULADOS.includes(k)){
-          const calc = calcularCustosFixosCapital(fasesMaquinas, benfeitorias, lavoura.area||0);
+          const calc = calcularCustosFixosCapital(maquinas, benfeitorias, lavoura.area||0);
           const usandoRef = !calc[k];
           const refRha = REF.itens[k].rha;
           const exibido = usandoRef ? refRha : calc[k];
@@ -1040,7 +1089,7 @@ function renderStep(){
         const refHint = modo==='total' ? brl(refRha*(lavoura.area||0)) : brl(refRha)+'/ha';
         return `
         <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':''}</label>
-          <input type="number" id="c-${k}" inputmode="decimal" min="0" step="${modo==='perha'?'1':(refRha>300?'500':'50')}" value="${val||(modo==='perha'?refRha.toFixed(2):'')}">
+          <input type="text" id="c-${k}" inputmode="decimal" value="${val?fmtBR(val):(modo==='perha'?fmtBR(refRha):'')}">
           <div class="fhint">Média Aprosoja/MS: ${refHint}</div>
         </div>`;
       }).join('');
@@ -1052,37 +1101,39 @@ function lerCamposEtapa(){
   if(step.tipo==='lavoura'){
     lavoura.produtor = document.getElementById('f-produtor').value.trim();
     lavoura.municipio = document.getElementById('f-municipio').value;
-    lavoura.area = parseFloat(document.getElementById('f-area').value)||0;
-    lavoura.produtividade = parseFloat(document.getElementById('f-produtividade').value)||0;
-    lavoura.preco = parseFloat(document.getElementById('f-preco').value)||0;
+    lavoura.area = parseBR(document.getElementById('f-area').value);
+    lavoura.produtividade = parseBR(document.getElementById('f-produtividade').value);
+    lavoura.preco = parseBR(document.getElementById('f-preco').value);
     return true;
   }
   if(step.tipo==='revisao') return true;
   if(step.tipo==='maquinas'){
-    fasesMaquinas.forEach((fase,fi)=>{
-      const fTxtEl = document.getElementById('fase-nome-'+fi);
-      if(fTxtEl) fase.nome = fTxtEl.value.trim();
-      fase.veiculos.forEach((v,vi)=>{
-        const nEl = document.getElementById(`veic-nome-${fi}-${vi}`);
-        const tEl = document.getElementById(`veic-tipo-${fi}-${vi}`);
-        const pEl = document.getElementById(`veic-potencia-${fi}-${vi}`);
-        const iTxtEl = document.getElementById(`veic-implemento-${fi}-${vi}`);
-        const psEl = document.getElementById(`veic-passadas-${fi}-${vi}`);
-        const vbEl = document.getElementById(`veic-valorbem-${fi}-${vi}`);
-        const laEl = document.getElementById(`veic-largura-${fi}-${vi}`);
-        const veEl = document.getElementById(`veic-velocidade-${fi}-${vi}`);
-        if(nEl) v.nome = nEl.value.trim();
-        if(tEl) v.tipo = tEl.value;
-        if(pEl) v.potencia = parseFloat(pEl.value)||0;
-        if(iTxtEl) v.implemento = iTxtEl.value.trim();
-        if(psEl) v.passadas = parseFloat(psEl.value)||0;
-        if(vbEl) v.valorBem = parseFloat(vbEl.value)||0;
-        if(laEl) v.largura = parseFloat(laEl.value)||0;
-        if(veEl) v.velocidade = parseFloat(veEl.value)||0;
+    maquinas.forEach((m,mi)=>{
+      const tEl = document.getElementById('maq-tipo-'+mi);
+      const maTxtEl = document.getElementById('maq-marca-'+mi);
+      const moTxtEl = document.getElementById('maq-modelo-'+mi);
+      const pEl = document.getElementById('maq-potencia-'+mi);
+      const vbEl = document.getElementById('maq-valorbem-'+mi);
+      if(tEl) m.tipo = tEl.value;
+      if(maTxtEl) m.marca = maTxtEl.value.trim();
+      if(moTxtEl) m.modelo = moTxtEl.value.trim();
+      if(pEl) m.potencia = parseBR(pEl.value);
+      if(vbEl) m.valorBem = parseBR(vbEl.value);
+      m.usos.forEach((u,ui)=>{
+        const fTxtEl = document.getElementById(`uso-fase-${mi}-${ui}`);
+        const iTxtEl = document.getElementById(`uso-implemento-${mi}-${ui}`);
+        const laEl = document.getElementById(`uso-largura-${mi}-${ui}`);
+        const veEl = document.getElementById(`uso-velocidade-${mi}-${ui}`);
+        const psEl = document.getElementById(`uso-passadas-${mi}-${ui}`);
+        if(fTxtEl) u.fase = fTxtEl.value.trim();
+        if(iTxtEl) u.implemento = iTxtEl.value.trim();
+        if(laEl) u.largura = parseBR(laEl.value);
+        if(veEl) u.velocidade = parseBR(veEl.value);
+        if(psEl) u.passadas = parseBR(psEl.value);
       });
     });
     {
-      const calc = totalOperacaoMaquinas(fasesMaquinas, lavoura.area||0);
+      const calc = totalOperacaoMaquinas(maquinas, lavoura.area||0);
       valores.op_maquinas = calc || REF.itens.op_maquinas.rha*(lavoura.area||0);
     }
     return true;
@@ -1095,8 +1146,8 @@ function lerCamposEtapa(){
       const oEl = document.getElementById('benf-ocupacao-'+bi);
       if(tEl) b.tipo = tEl.value;
       if(nEl) b.nome = nEl.value.trim();
-      if(vEl) b.valor = parseFloat(vEl.value)||0;
-      if(oEl) b.ocupacao = (parseFloat(oEl.value)||0)/100;
+      if(vEl) b.valor = parseBR(vEl.value);
+      if(oEl) b.ocupacao = parseBR(oEl.value)/100;
     });
     return true;
   }
@@ -1105,14 +1156,14 @@ function lerCamposEtapa(){
       const dEl = document.getElementById('oc-desc-'+i), vEl = document.getElementById('oc-valor-'+i);
       const uEl = document.getElementById('oc-unidade-'+i);
       if(dEl) oc.descricao = dEl.value.trim();
-      if(vEl) oc.valor = parseFloat(vEl.value)||0;
+      if(vEl) oc.valor = parseBR(vEl.value);
       if(uEl) oc.unidade = uEl.value;
     });
     return true;
   }
   step.campos.forEach(k=>{
     const el = document.getElementById('c-'+k);
-    valores[k] = el ? (parseFloat(el.value)||0) : (valores[k]||0);
+    valores[k] = el ? parseBR(el.value) : (valores[k]||0);
   });
   return true;
 }
@@ -1127,15 +1178,20 @@ function validarEtapa(){
     if(lavoura.preco<=0) erros.push('<b>Preço de venda</b> deve ser maior que zero.');
   }
   if(step.tipo==='maquinas'){
-    fasesMaquinas.forEach((fase,fi)=>{
-      fase.veiculos.forEach((v,vi)=>{
-        const algum = v.valorBem>0 || v.largura>0 || v.velocidade>0;
-        if(!algum) return;
-        const rotulo = `${fase.nome||('Fase '+(fi+1))} · Veículo ${vi+1}`;
-        if(!(v.valorBem>0)) erros.push(`"${rotulo}": informe o <b>Valor do bem</b> ou apague os outros campos de depreciação.`);
-        if(!(v.largura>0)) erros.push(`"${rotulo}": informe a <b>Largura de trabalho</b> ou apague os outros campos de depreciação.`);
-        if(!(v.velocidade>0)) erros.push(`"${rotulo}": informe a <b>Velocidade</b> ou apague os outros campos de depreciação.`);
-        if(!(v.passadas>0)) erros.push(`"${rotulo}": informe as <b>Passadas na safra</b> ou apague os outros campos de depreciação.`);
+    maquinas.forEach((m,mi)=>{
+      const rotuloM = `Máquina ${mi+1}${m.tipo?' ('+m.tipo+')':''}`;
+      const algumM = m.potencia>0 || m.valorBem>0;
+      if(algumM){
+        if(!(m.potencia>0)) erros.push(`"${rotuloM}": informe a <b>Potência</b> ou apague o Valor do bem.`);
+        if(!(m.valorBem>0)) erros.push(`"${rotuloM}": informe o <b>Valor do bem</b> ou apague a Potência.`);
+      }
+      m.usos.forEach((u,ui)=>{
+        const algumU = algumM || u.largura>0 || u.velocidade>0 || u.passadas>0;
+        if(!algumU) return;
+        const rotuloU = `${rotuloM} · Uso ${ui+1}${u.fase?' ('+u.fase+')':''}`;
+        if(!(u.largura>0)) erros.push(`"${rotuloU}": informe a <b>Largura de trabalho</b>.`);
+        if(!(u.velocidade>0)) erros.push(`"${rotuloU}": informe a <b>Velocidade</b>.`);
+        if(!(u.passadas>0)) erros.push(`"${rotuloU}": informe as <b>Passadas na safra</b>.`);
       });
     });
   }
@@ -1180,42 +1236,54 @@ function stepBack(){
   renderStep();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-function adicionarFaseMaquina(){
+function adicionarMaquina(){
   lerCamposEtapa();
-  fasesMaquinas.push(novaFaseMaquina());
+  maquinas.push(novaMaquina());
   renderStep();
 }
-function removerFaseMaquina(fi){
+function removerMaquina(mi){
   lerCamposEtapa();
-  fasesMaquinas.splice(fi,1);
+  maquinas.splice(mi,1);
   renderStep();
 }
-function adicionarVeiculoMaquina(fi){
+function adicionarUsoMaquina(mi){
   lerCamposEtapa();
-  fasesMaquinas[fi].veiculos.push(novoVeiculoMaquina());
+  maquinas[mi].usos.push(novoUsoMaquina());
   renderStep();
 }
-function removerVeiculoMaquina(fi,vi){
+function removerUsoMaquina(mi,ui){
   lerCamposEtapa();
-  fasesMaquinas[fi].veiculos.splice(vi,1);
+  maquinas[mi].usos.splice(ui,1);
   renderStep();
 }
-function mudarTipoMaquina(fi,vi,tipoNome){
+function mudarTipoMaquina(mi,tipoNome){
   lerCamposEtapa();
-  const v = fasesMaquinas[fi].veiculos[vi];
-  v.tipo = tipoNome;
+  const m = maquinas[mi];
+  m.tipo = tipoNome;
+  m.marca=''; m.modelo='';
   const cat = CATALOGO_MAQUINAS.find(c=>c.nome===tipoNome);
-  if(cat){ v.vidaUtilAnos=cat.anos; v.vidaUtilHoras=cat.horas; v.residual=cat.residual; }
+  if(cat){ m.vidaUtilAnos=cat.anos; m.vidaUtilHoras=cat.horas; m.residual=cat.residual; }
   renderStep();
 }
-function preencherFaseTexto(fi,valor){
+function mudarMarcaMaquina(mi,marca){
   lerCamposEtapa();
-  if(valor) fasesMaquinas[fi].nome = valor;
+  const m = maquinas[mi];
+  if(marca){ m.marca = marca; m.modelo=''; }
   renderStep();
 }
-function preencherImplementoTexto(fi,vi,valor){
+function mudarModeloMaquina(mi,modelo){
   lerCamposEtapa();
-  if(valor) fasesMaquinas[fi].veiculos[vi].implemento = valor;
+  if(modelo) maquinas[mi].modelo = modelo;
+  renderStep();
+}
+function preencherFaseTexto(mi,ui,valor){
+  lerCamposEtapa();
+  if(valor) maquinas[mi].usos[ui].fase = valor;
+  renderStep();
+}
+function preencherImplementoTexto(mi,ui,valor){
+  lerCamposEtapa();
+  if(valor) maquinas[mi].usos[ui].implemento = valor;
   renderStep();
 }
 function adicionarBenfeitoria(){
@@ -1260,7 +1328,7 @@ function textoPreviewOutroCusto(oc){
 function atualizarPreviewOutroCusto(i){
   const vEl = document.getElementById('oc-valor-'+i), prevEl = document.getElementById('oc-preview-'+i);
   if(!vEl || !prevEl) return;
-  outrosCustos[i].valor = parseFloat(vEl.value)||0;
+  outrosCustos[i].valor = parseBR(vEl.value);
   const texto = textoPreviewOutroCusto(outrosCustos[i]);
   prevEl.innerHTML = texto;
   prevEl.style.display = texto ? '' : 'none';
@@ -1287,12 +1355,13 @@ function svgDonut(fatias, custoTotalRha){
 // ─── DETALHE DA OPERAÇÃO DE MÁQUINAS (fases → veículos) ────────────────────────
 function linhasMaquinas(maquinasDetalhe, area){
   const linhas=[];
-  (maquinasDetalhe||[]).forEach(fase=>{
-    (fase.veiculos||[]).forEach(v=>{
-      const custo = custoOperacaoVeiculo(v, area);
-      if(!v.nome && !custo.total) return;
-      linhas.push({fase:fase.nome||'-', veiculo:v.nome||'-', potencia:v.potencia||0,
-        implemento:v.implemento||'-', passadas:v.passadas||0, valor:custo.total, rha:custo.rha});
+  (maquinasDetalhe||[]).forEach(m=>{
+    const nomeMaquina = [m.tipo, m.marca, m.modelo].filter(Boolean).join(' ');
+    (m.usos||[]).forEach(u=>{
+      const custo = custoOperacaoUso(m, u, area);
+      if(!nomeMaquina && !custo.total) return;
+      linhas.push({maquina:nomeMaquina||'-', fase:u.fase||'-', implemento:u.implemento||'-',
+        potencia:m.potencia||0, passadas:u.passadas||0, valor:custo.total, rha:custo.rha});
     });
   });
   return linhas;
@@ -1366,14 +1435,14 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
   const secMaquinas = linhasMaq.length ? `
     <div class="pdf-sec">
       <div class="pdf-h2">3. Detalhamento da Operação de Máquinas</div>
-      <p class="pdf-p">Máquinas, veículos e implementos previstos para cada fase da produção, com a potência e o número
+      <p class="pdf-p">Máquinas e implementos previstos para cada fase da produção, com a potência e o número
       de passadas na lavoura ao longo de toda a safra informados pelo produtor. O custo de operação é previsto pelo
       app a partir desses dados técnicos, seguindo a Metodologia de Custo de Produção da Aprosoja/MS.</p>
       <table class="pdf-table">
-        <thead><tr><th>Fase</th><th>Veículo/Máquina</th><th>Implemento</th><th class="num">Potência (cv)</th>
+        <thead><tr><th>Máquina</th><th>Fase</th><th>Implemento</th><th class="num">Potência (cv)</th>
           <th class="num">Passadas</th><th class="num">Custo Previsto (R$)</th><th class="num">R$/ha</th></tr></thead>
         <tbody>${linhasMaq.map(l=>`
-          <tr><td>${l.fase}</td><td>${l.veiculo}</td><td>${l.implemento}</td><td class="num">${n1(l.potencia)}</td>
+          <tr><td>${l.maquina}</td><td>${l.fase}</td><td>${l.implemento}</td><td class="num">${n1(l.potencia)}</td>
             <td class="num">${n1(l.passadas)}</td><td class="num">${brl(l.valor)}</td><td class="num">${brl(l.rha)}</td></tr>`).join('')}
         </tbody>
         <tfoot><tr><td colspan="5">Total</td><td class="num">${brl(totalMaqValor)}</td><td class="num">${brl(totalMaqRha)}</td></tr></tfoot>
@@ -1630,7 +1699,7 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
         <div class="stitle">Detalhamento da Operação de Máquinas</div>
         ${linhasMaq.map(l=>`
         <div class="item-card">
-          <div class="item-top"><span class="item-name">${l.fase} · ${l.veiculo}</span><span class="badge dentro">${brl(l.valor)}</span></div>
+          <div class="item-top"><span class="item-name">${l.maquina} · ${l.fase}</span><span class="badge dentro">${brl(l.valor)}</span></div>
           <div class="item-grid">
             <div>Potência<b>${n1(l.potencia)} cv</b></div>
             <div>Implemento<b>${l.implemento}</b></div>
@@ -1700,10 +1769,10 @@ async function calcularESalvar(){
   const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF, outrosCustos);
   const meta = {produtor:lavoura.produtor, municipio:lavoura.municipio, safra:REF.safra, data:new Date().toISOString().split('T')[0]};
   ultimoResultado=r; ultimaMeta=meta;
-  renderRelatorio(r, meta, fasesMaquinas, benfeitorias);
+  renderRelatorio(r, meta, maquinas, benfeitorias);
 
   const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), outros_custos:JSON.parse(JSON.stringify(outrosCustos)),
-    maquinas_detalhe:JSON.parse(JSON.stringify(fasesMaquinas)), benfeitorias_detalhe:JSON.parse(JSON.stringify(benfeitorias)),
+    maquinas_detalhe:JSON.parse(JSON.stringify(maquinas)), benfeitorias_detalhe:JSON.parse(JSON.stringify(benfeitorias)),
     resultado:r, safra:REF.safra, cultura:'Soja', status:'pending', created_at:new Date().toISOString()};
   await dbAdd(entry);
   atualizarBadge();
@@ -1724,7 +1793,7 @@ function novoCalculo(){
   valores={}; CAMPOS_TOTAL.forEach(k=>valores[k]=0); CAMPOS_POR_HA.forEach(k=>valores[k]=0);
   lavoura={produtor:'',municipio:'',area:0,produtividade:REF?0:0,preco:REF?REF.preco_medio:0};
   outrosCustos=[];
-  fasesMaquinas=FASES_MAQUINAS_PADRAO.map(novaFaseMaquina);
+  maquinas=[];
   benfeitorias=[];
   stepIdx=0;
   document.getElementById('report-view').style.display='none';
@@ -1969,6 +2038,7 @@ setTimeout(()=>{
   await carregarReferencia();
   lavoura.preco = REF ? REF.preco_medio : 0;
   renderStep();
+  carregarMarcasModelos(); // carrega em segundo plano; re-renderiza sozinho quando pronto
   setOnline(navigator.onLine);
   atualizarBadge();
 })();
