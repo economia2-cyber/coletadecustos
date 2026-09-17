@@ -941,17 +941,15 @@ function renderStep(){
           </select></div>
         <div class="fg oc-row">
           <div class="oc-valor" style="flex:1"><label>Marca</label>
-            <select id="maq-marca-sel-${mi}" onchange="mudarMarcaMaquina(${mi},this.value)">
+            <select id="maq-marca-${mi}" onchange="mudarMarcaMaquina(${mi},this.value)">
               <option value="">${MARCAS_MODELOS?'Selecionar marca...':'Carregando marcas...'}</option>
               ${marcasDisponiveis(m.tipo).map(marca=>`<option value="${marca}"${m.marca===marca?' selected':''}>${marca}</option>`).join('')}
-            </select>
-            <input type="text" id="maq-marca-${mi}" placeholder="Marca" value="${m.marca||''}" style="margin-top:6px"></div>
+            </select></div>
           <div class="oc-valor" style="flex:1"><label>Modelo</label>
-            <select id="maq-modelo-sel-${mi}" onchange="mudarModeloMaquina(${mi},this.value)">
+            <select id="maq-modelo-${mi}" onchange="mudarModeloMaquina(${mi},this.value)">
               <option value="">${MARCAS_MODELOS?'Selecionar modelo...':'Carregando modelos...'}</option>
               ${modelosDisponiveis(m.tipo,m.marca).map(modelo=>`<option value="${modelo}"${m.modelo===modelo?' selected':''}>${modelo}</option>`).join('')}
-            </select>
-            <input type="text" id="maq-modelo-${mi}" placeholder="Modelo" value="${m.modelo||''}" style="margin-top:6px"></div>
+            </select></div>
         </div>
         <div class="fg"><label>Valor do bem (R$) *</label>
           <input type="text" id="maq-valorbem-${mi}" inputmode="decimal" value="${fmtBR(m.valorBem)}">
@@ -969,17 +967,15 @@ function renderStep(){
           <div class="item-top"><span class="item-name">Uso ${ui+1}</span>
             ${m.usos.length>1 ? `<button type="button" class="bghost" style="padding:2px 4px" onclick="removerUsoMaquina(${mi},${ui})">Remover</button>` : ''}</div>
           <div class="fg"><label>Fase da produção</label>
-            <select id="uso-fase-sel-${mi}-${ui}" onchange="preencherFaseTexto(${mi},${ui},this.value)">
-              <option value="">Selecionar fase padrão...</option>
+            <select id="uso-fase-${mi}-${ui}" onchange="preencherFaseTexto(${mi},${ui},this.value)">
+              <option value="">Selecionar fase...</option>
               ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${u.fase===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
-            </select>
-            <input type="text" id="uso-fase-${mi}-${ui}" placeholder="Nome da fase" value="${u.fase||''}" style="margin-top:6px"></div>
+            </select></div>
           <div class="fg"><label>Implemento</label>
-            <select id="uso-implemento-sel-${mi}-${ui}" onchange="preencherImplementoTexto(${mi},${ui},this.value)">
-              <option value="">Selecionar implemento sugerido...</option>
+            <select id="uso-implemento-${mi}-${ui}" onchange="preencherImplementoTexto(${mi},${ui},this.value)">
+              <option value="">Selecionar implemento...</option>
               ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${u.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
-            </select>
-            <input type="text" id="uso-implemento-${mi}-${ui}" placeholder="Nome do implemento" value="${u.implemento||''}" style="margin-top:6px"></div>
+            </select></div>
           <div class="fg oc-row">
             <div class="oc-valor" style="flex:1"><label>Largura de trabalho (m) *</label>
               <input type="text" id="uso-largura-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.largura)}"></div>
@@ -1110,23 +1106,23 @@ function lerCamposEtapa(){
   if(step.tipo==='maquinas'){
     maquinas.forEach((m,mi)=>{
       const tEl = document.getElementById('maq-tipo-'+mi);
-      const maTxtEl = document.getElementById('maq-marca-'+mi);
-      const moTxtEl = document.getElementById('maq-modelo-'+mi);
+      const maSelEl = document.getElementById('maq-marca-'+mi);
+      const moSelEl = document.getElementById('maq-modelo-'+mi);
       const pEl = document.getElementById('maq-potencia-'+mi);
       const vbEl = document.getElementById('maq-valorbem-'+mi);
       if(tEl) m.tipo = tEl.value;
-      if(maTxtEl) m.marca = maTxtEl.value.trim();
-      if(moTxtEl) m.modelo = moTxtEl.value.trim();
+      if(maSelEl) m.marca = maSelEl.value;
+      if(moSelEl) m.modelo = moSelEl.value;
       if(pEl) m.potencia = parseBR(pEl.value);
       if(vbEl) m.valorBem = parseBR(vbEl.value);
       m.usos.forEach((u,ui)=>{
-        const fTxtEl = document.getElementById(`uso-fase-${mi}-${ui}`);
-        const iTxtEl = document.getElementById(`uso-implemento-${mi}-${ui}`);
+        const fSelEl = document.getElementById(`uso-fase-${mi}-${ui}`);
+        const iSelEl = document.getElementById(`uso-implemento-${mi}-${ui}`);
         const laEl = document.getElementById(`uso-largura-${mi}-${ui}`);
         const veEl = document.getElementById(`uso-velocidade-${mi}-${ui}`);
         const psEl = document.getElementById(`uso-passadas-${mi}-${ui}`);
-        if(fTxtEl) u.fase = fTxtEl.value.trim();
-        if(iTxtEl) u.implemento = iTxtEl.value.trim();
+        if(fSelEl) u.fase = fSelEl.value;
+        if(iSelEl) u.implemento = iSelEl.value;
         if(laEl) u.largura = parseBR(laEl.value);
         if(veEl) u.velocidade = parseBR(veEl.value);
         if(psEl) u.passadas = parseBR(psEl.value);
@@ -1268,22 +1264,22 @@ function mudarTipoMaquina(mi,tipoNome){
 function mudarMarcaMaquina(mi,marca){
   lerCamposEtapa();
   const m = maquinas[mi];
-  if(marca){ m.marca = marca; m.modelo=''; }
+  m.marca = marca; m.modelo='';
   renderStep();
 }
 function mudarModeloMaquina(mi,modelo){
   lerCamposEtapa();
-  if(modelo) maquinas[mi].modelo = modelo;
+  maquinas[mi].modelo = modelo;
   renderStep();
 }
 function preencherFaseTexto(mi,ui,valor){
   lerCamposEtapa();
-  if(valor) maquinas[mi].usos[ui].fase = valor;
+  maquinas[mi].usos[ui].fase = valor;
   renderStep();
 }
 function preencherImplementoTexto(mi,ui,valor){
   lerCamposEtapa();
-  if(valor) maquinas[mi].usos[ui].implemento = valor;
+  maquinas[mi].usos[ui].implemento = valor;
   renderStep();
 }
 function adicionarBenfeitoria(){
