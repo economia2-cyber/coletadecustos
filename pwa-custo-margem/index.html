@@ -290,8 +290,8 @@
 <div id="page-calc" class="page active">
 
   <div id="wizard">
-    <div class="ptitle">CUSTO DE PRODUÇÃO - SOJA</div>
-    <div class="psub" id="step-sub">Receba um relatório completo do seu custo, entenda sua margem e compare com a média do estado.</div>
+    <div class="ptitle">PREVISÃO DE CUSTO - SOJA</div>
+    <div class="psub" id="step-sub">Receba uma previsão completa do custo da sua safra, entenda sua margem e compare com a média do estado antes de plantar.</div>
 
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:14%"></div></div>
@@ -488,7 +488,9 @@ const REPO_DEFAULT = 'economia2-cyber/calculadora-de-custo';
 // ─── ETAPAS DO ASSISTENTE ──────────────────────────────────────────────────────
 const STEPS = [
   {id:'lavoura', nome:'Dados da Lavoura', tipo:'lavoura'},
-  {id:'maq', nome:'Máquinas, Mão de Obra e Financeiro', campos:['op_maquinas','mao_obra','juros'], modo:'total'},
+  {id:'maquinas', nome:'Operação de Máquinas', tipo:'maquinas'},
+  {id:'benfeitorias', nome:'Benfeitorias e Instalações', tipo:'benfeitorias'},
+  {id:'maq', nome:'Mão de Obra e Financeiro', campos:['mao_obra','juros'], modo:'total'},
   {id:'insumos', nome:'Insumos da Lavoura', campos: GRUPOS['Insumos'], modo:'total'},
   {id:'outras', nome:'Outras Despesas', campos: GRUPOS['Outras Despesas'], modo:'total'},
   {id:'outros_custos', nome:'Outros Custos', tipo:'outros_custos'},
@@ -507,6 +509,154 @@ CAMPOS_TOTAL.forEach(k=>valores[k]=0);
 CAMPOS_POR_HA.forEach(k=>valores[k]=0);
 let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
 let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
+
+// ─── OPERAÇÃO DE MÁQUINAS (fases → veículos) ───────────────────────────────────
+const FASES_MAQUINAS_PADRAO = ['Preparo do Solo', 'Plantio', 'Tratos Culturais (Pulverizações)', 'Colheita'];
+const IMPLEMENTOS_SUGERIDOS = ['Grade Niveladora','Grade Aradora','Subsolador','Plantadeira/Semeadora',
+  'Pulverizador Autopropelido','Pulverizador de Arrasto','Distribuidor de Calcário/Fertilizante',
+  'Plataforma de Colheita','Carreta Graneleira','Roçadeira'];
+
+// Vida útil (anos/horas) e valor residual (%) por tipo de bem, conforme a
+// Metodologia de Custo de Produção da Aprosoja/MS, Anexos I e II, recorte
+// dos equipamentos usados na produção de soja. "Outro" fica livre pro
+// produtor/técnico digitar os próprios parâmetros quando o bem não está
+// nesta lista.
+const CATALOGO_MAQUINAS = [
+  {nome:'Trator', anos:10, horas:15000, residual:0.20},
+  {nome:'Colhedora', anos:10, horas:5000, residual:0.25},
+  {nome:'Pulverizador Autopropelido', anos:10, horas:10000, residual:0.20},
+  {nome:'Pulverizador de Arrasto', anos:8, horas:2000, residual:0.05},
+  {nome:'Plantadeira/Semeadora', anos:15, horas:1200, residual:0.20},
+  {nome:'Grade Aradora/Niveladora', anos:15, horas:2500, residual:0.05},
+  {nome:'Subsolador', anos:15, horas:2500, residual:0.05},
+  {nome:'Distribuidor de Calcário/Fertilizante', anos:10, horas:2000, residual:0.05},
+  {nome:'Plataforma de Colheita (Grãos)', anos:10, horas:5000, residual:0.25},
+  {nome:'Carreta Graneleira', anos:15, horas:5000, residual:0.05},
+  {nome:'Roçadeira', anos:12, horas:2500, residual:0.05},
+  {nome:'Caminhão', anos:10, horas:12000, residual:0.25},
+  {nome:'Outro (personalizado)', anos:10, horas:5000, residual:0.20},
+];
+function novaFaseMaquina(nome){ return {nome:nome||'', veiculos:[novoVeiculoMaquina()]}; }
+function novoVeiculoMaquina(){
+  const c = CATALOGO_MAQUINAS[0];
+  return {nome:'', tipo:c.nome, potencia:0, implemento:'', passadas:0,
+    valorBem:0, largura:0, velocidade:0, vidaUtilAnos:c.anos, vidaUtilHoras:c.horas, residual:c.residual};
+}
+let fasesMaquinas = FASES_MAQUINAS_PADRAO.map(novaFaseMaquina);
+
+// Horas trabalhadas por hectare, na safra: mesma fórmula da Metodologia da Aprosoja/MS
+// (Cap. IV, item 3.1) e da planilha oficial Aprosoja/MS (aba "I.1 Custo de Op.
+// de Maquinas", coluna "h/ha"). Não é perguntado ao produtor, é derivado da
+// largura de trabalho, velocidade e nº de passadas que ele já informa.
+const EFICIENCIA_OPERACIONAL_PADRAO = 0.75; // 75%, mesmo valor usado nos 3 exemplos da planilha oficial
+function horasHaVeiculo(v){
+  if(!v.largura || !v.velocidade || !v.passadas) return 0;
+  const hPorPassada = 1/((v.largura*v.velocidade*EFICIENCIA_OPERACIONAL_PADRAO)/10);
+  return hPorPassada*v.passadas;
+}
+
+// Custo de operação de máquinas (R$), previsto para a safra: o produtor não
+// gasta esse valor "de cabeça" antes de plantar, então em vez de perguntar
+// um total, o app prevê a partir de dados técnicos do veículo (potência,
+// valor do bem, largura, velocidade, passadas), seguindo a Metodologia de
+// Custo de Produção da Aprosoja/MS (Cap. IV, item 3), a mesma usada para
+// calcular a própria média Aprosoja/MS: diesel + lubrificação + operador +
+// manutenção da máquina, por hora, multiplicado pelas horas trabalhadas na
+// safra. Não inclui manutenção de implemento (exigiria pedir o valor do
+// implemento à parte).
+const ENCARGOS_OPERADOR_SAFRA = 0.3731; // 37,31%, encargos sobre contrato-safra (Metodologia da Aprosoja/MS, Anexo V)
+function custoOperacaoVeiculo(v, area){
+  const horasHa = horasHaVeiculo(v);
+  if(!horasHa || !area) return {custoHora:0, rha:0, total:0};
+  const precoDiesel = (REF && REF.preco_diesel) || PRECO_DIESEL_RESERVA;
+  const salarioOperador = (REF && REF.salario_medio_operador) || SALARIO_OPERADOR_RESERVA;
+  const dieselH = (v.potencia||0)*0.12*precoDiesel;
+  const lubrifH = dieselH*0.01;
+  const operadorH = (salarioOperador*(1+ENCARGOS_OPERADOR_SAFRA))/220;
+  const horasAno = v.vidaUtilHoras/(v.vidaUtilAnos||1);
+  const manutMaquinaH = v.valorBem ? (v.valorBem*0.01)/horasAno : 0;
+  const custoHora = dieselH+lubrifH+operadorH+manutMaquinaH;
+  const rha = horasHa*custoHora;
+  return {custoHora, rha, total: rha*area};
+}
+function totalOperacaoMaquinas(fasesMaq, area){
+  let total = 0;
+  (fasesMaq||[]).forEach(fase=>(fase.veiculos||[]).forEach(v=>{ total += custoOperacaoVeiculo(v, area).total; }));
+  return total;
+}
+
+// ─── BENFEITORIAS E INSTALAÇÕES ─────────────────────────────────────────────────
+// Vida útil (anos) e valor residual (%), conforme a Metodologia da Aprosoja/MS, Anexo III.
+const CATALOGO_BENFEITORIAS = [
+  {nome:'Açude, Barragem, Represa', anos:50, residual:0.20},
+  {nome:'Cerca Externa/Interna', anos:25, residual:0.20},
+  {nome:'Estrutura de Alvenaria e Concreto', anos:40, residual:0.20},
+  {nome:'Estrutura de Madeira', anos:25, residual:0.20},
+  {nome:'Estrutura Metálica', anos:40, residual:0.20},
+  {nome:'Eletrificação Rural', anos:40, residual:0.20},
+  {nome:'Poço Artesiano', anos:40, residual:0.20},
+  {nome:'Rodolávio', anos:40, residual:0.20},
+  {nome:'Tanque', anos:40, residual:0.20},
+  {nome:'Terreiro de Asfalto/Concreto', anos:40, residual:0.20},
+  {nome:'Outro (personalizado)', anos:25, residual:0.20},
+];
+function novaBenfeitoria(){
+  const c = CATALOGO_BENFEITORIAS[0];
+  return {nome:'', tipo:c.nome, valor:0, ocupacao:1, vidaUtilAnos:c.anos, residual:c.residual};
+}
+let benfeitorias = [];
+
+// ─── CUSTOS FIXOS CALCULADOS (deprec./seguro/renda de fatores) ─────────────────
+// Percentuais fixos definidos pela Metodologia da Aprosoja/MS (Cap. IV, Título V):
+// manutenção de benfeitorias = 1% a.a. do valor do bem; seguro do capital fixo
+// = 0,75% a.a. sobre o valor médio do bem. A taxa de remuneração do capital
+// (poupança/Selic de referência) vem de reference.json (mesma safra usada nas
+// demais médias Aprosoja/MS), com um valor de reserva caso não venha.
+const TAXA_MANUT_BENFEITORIAS = 0.01;
+const TAXA_SEGURO_CAPITAL = 0.0075;
+const TAXA_RENDA_FATORES_RESERVA = 0.1425;
+const PRECO_DIESEL_RESERVA = 6.45; // R$/l, mesmo valor da planilha oficial da safra vigente
+const SALARIO_OPERADOR_RESERVA = 2612.79; // R$/mês (CAGED), mesmo valor da planilha oficial da safra vigente
+const CAMPOS_AUTOCALCULADOS = ['deprec_benfeit','deprec_maquinas','manut_periodica','seguro_capital','renda_fatores'];
+
+function taxaRendaFatoresAtual(){ return (REF && REF.taxa_poupanca_anual) || TAXA_RENDA_FATORES_RESERVA; }
+function calcularCustosMaquinas(fasesMaq){
+  let deprec=0, seguro=0, renda=0;
+  const taxaRenda = taxaRendaFatoresAtual();
+  (fasesMaq||[]).forEach(fase=>(fase.veiculos||[]).forEach(v=>{
+    const horasHa = horasHaVeiculo(v);
+    if(!v.valorBem || !v.vidaUtilHoras || !horasHa) return;
+    const residual = v.residual||0;
+    const horasAno = v.vidaUtilHoras/(v.vidaUtilAnos||1);
+    deprec += v.valorBem*(1-residual)*horasHa/v.vidaUtilHoras;
+    seguro += (v.valorBem/2)*TAXA_SEGURO_CAPITAL*horasHa/horasAno;
+    renda  += (v.valorBem/2)*taxaRenda*horasHa/horasAno;
+  }));
+  return {deprec, seguro, renda};
+}
+function calcularCustosBenfeitorias(benf, area){
+  let deprec=0, manut=0, seguro=0, renda=0;
+  const taxaRenda = taxaRendaFatoresAtual();
+  (benf||[]).forEach(b=>{
+    if(!area || !b.valor) return;
+    const ocup = b.ocupacao!=null ? b.ocupacao : 1;
+    const vidaAnos = b.vidaUtilAnos||1;
+    const residual = b.residual||0;
+    deprec += b.valor*(1-residual)*ocup/vidaAnos/area;
+    manut  += b.valor*TAXA_MANUT_BENFEITORIAS/area;
+    seguro += (b.valor/2)*TAXA_SEGURO_CAPITAL*ocup/vidaAnos/area;
+    renda  += (b.valor/2)*taxaRenda*ocup/vidaAnos/area;
+  });
+  return {deprec, manut, seguro, renda};
+}
+function calcularCustosFixosCapital(fasesMaq, benf, area){
+  const maq = calcularCustosMaquinas(fasesMaq);
+  const ben = calcularCustosBenfeitorias(benf, area);
+  return {
+    deprec_maquinas: maq.deprec, deprec_benfeit: ben.deprec, manut_periodica: ben.manut,
+    seguro_capital: maq.seguro+ben.seguro, renda_fatores: maq.renda+ben.renda,
+  };
+}
 
 // ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
 const brl = (v,dec=2)=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -544,6 +694,18 @@ function linha(rha, custoTotalRha, preco, ref){
     status: status(deltaPct),
   };
 }
+// "Outro custo" pode ser lançado como valor total (R$) na safra ou como
+// sc/ha (comum em arrendamento, cotado em sacas por hectare) — nesse caso
+// o app converte pelo preço de venda informado, sem o produtor precisar
+// já saber o valor em reais.
+function outroCustoRha(oc, area, preco){
+  if(oc.unidade==='scha') return (oc.valor||0)*preco;
+  return area ? (oc.valor||0)/area : 0;
+}
+function outroCustoTotalReais(oc, area, preco){
+  if(oc.unidade==='scha') return (oc.valor||0)*preco*area;
+  return oc.valor||0;
+}
 function calcular(valores, area, produtividade, preco, ref, outros){
   outros = outros || [];
   const rha = {};
@@ -551,7 +713,7 @@ function calcular(valores, area, produtividade, preco, ref, outros){
   CAMPOS_POR_HA.forEach(k=> rha[k] = valores[k]||0);
 
   const outrosValidos = outros.filter(oc=>oc.valor>0);
-  const outrosTotalRha = area ? outrosValidos.reduce((s,oc)=>s+oc.valor,0)/area : 0;
+  const outrosTotalRha = outrosValidos.reduce((s,oc)=>s+outroCustoRha(oc,area,preco),0);
 
   const custoVariavelRha = CAMPOS_CUSTO_VARIAVEL.reduce((s,k)=>s+rha[k],0) + outrosTotalRha;
   const custoFixoRha = CAMPOS_CUSTO_FIXO.reduce((s,k)=>s+rha[k],0);
@@ -572,7 +734,7 @@ function calcular(valores, area, produtividade, preco, ref, outros){
   const itens = {};
   Object.keys(rha).forEach(k=> itens[k]=linha(rha[k], custoTotalRha, preco, refItens[k]));
   outrosValidos.forEach((oc,i)=>{
-    const rhaOutro = area ? oc.valor/area : 0;
+    const rhaOutro = outroCustoRha(oc, area, preco);
     itens['outro_'+i] = {...linha(rhaOutro, custoTotalRha, preco, null), nome: oc.descricao||'Outros Custos'};
   });
 
@@ -615,22 +777,22 @@ function gerarInsights(r){
   const ct = r.agregados.custo_total;
   if(ct.delta_pct!==null){
     if(ct.status==='acima'){
-      ins.push(['alerta', `Seu custo total é ${(ct.delta_pct*100).toFixed(1)}% maior que a média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), o equivalente a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo.`]);
+      ins.push(['alerta', `Seu custo total previsto é ${(ct.delta_pct*100).toFixed(1)}% maior que a média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), o equivalente a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo. Vale revisar as fases abaixo antes de plantar.`]);
     }else if(ct.status==='abaixo'){
-      ins.push(['ok', `Seu custo total está ${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), uma economia de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
+      ins.push(['ok', `Seu custo total previsto está ${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), uma economia esperada de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
     }else{
-      ins.push(['info', `Seu custo total está dentro da faixa da média Aprosoja/MS (${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha).`]);
+      ins.push(['info', `Seu custo total previsto está dentro da faixa da média Aprosoja/MS (${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha).`]);
     }
   }
   const acima = Object.entries(r.grupos).filter(([,g])=>g.status==='acima').sort((a,b)=>b[1].delta_scha-a[1].delta_scha);
   acima.slice(0,3).forEach(([nome,g])=>{
-    ins.push(['alerta', `${nome}: ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha a mais).`]);
+    ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia possível se ajustado).`]);
   });
   const abaixo = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
   abaixo.slice(0,2).forEach(([nome,g])=>{
-    ins.push(['ok', `${nome}: ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+    ins.push(['ok', `${nome} está bem planejado: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
   });
   const prod=r.produtividade, peqT=r.ponto_eq_total, peqO=r.ponto_eq_operacional, folga=prod-peqT;
   if(folga>=0){
@@ -638,7 +800,7 @@ function gerarInsights(r){
   }else if(prod>=peqO){
     ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${Math.abs(folga).toFixed(1)} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha). Não sobra para remunerar o capital investido.`]);
   }else{
-    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha). A lavoura está operando no prejuízo em caixa.`]);
+    ins.push(['alerta', `Sua produtividade esperada (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha). Nesse cenário, a safra ficaria no prejuízo em caixa.`]);
   }
   const lp=r.lucratividade_pct*100;
   if(lp>=15) ins.push(['ok', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta.`]);
@@ -680,7 +842,7 @@ function renderStep(){
     let totalGeral = 0;
     CAMPOS_TOTAL.forEach(k=>totalGeral += (valores[k]||0));
     const outrosValidos = outrosCustos.filter(oc=>oc.valor>0);
-    const outrosTotal = outrosValidos.reduce((s,oc)=>s+oc.valor,0);
+    const outrosTotal = outrosValidos.reduce((s,oc)=>s+outroCustoTotalReais(oc,lavoura.area||0,lavoura.preco||0),0);
     totalGeral += outrosTotal;
     const perHaTotal = CAMPOS_POR_HA.reduce((s,k)=>s+(valores[k]||0)*(lavoura.area||0),0);
     c.innerHTML = `
@@ -691,31 +853,164 @@ function renderStep(){
       <div class="resumo-row"><span>Produtividade</span><b>${n1(lavoura.produtividade)} sc/ha</b></div>
       <div class="resumo-row"><span>Preço de venda</span><b>${brl(lavoura.preco)}/sc</b></div>
       <hr>
-      <div class="resumo-row"><span>Total custo variável (gasto informado)</span><b>${brl(totalGeral)}</b></div>
-      <div class="resumo-row"><span>Total custo fixo + oportunidade (estimado)</span><b>${brl(perHaTotal)}</b></div>
+      <div class="resumo-row"><span>Total custo variável previsto</span><b>${brl(totalGeral)}</b></div>
+      <div class="resumo-row"><span>Total custo fixo + oportunidade previsto</span><b>${brl(perHaTotal)}</b></div>
       ${outrosValidos.length ? `<div class="resumo-row"><span>Outros custos (${outrosValidos.length} item${outrosValidos.length>1?'s':''})</span><b>${brl(outrosTotal)}</b></div>` : ''}
       <div class="fhint" style="margin-top:10px">Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+    `;
+  }else if(step.tipo==='maquinas'){
+    const totalMaquinasCalc = totalOperacaoMaquinas(fasesMaquinas, lavoura.area||0);
+    const usandoRefMaquinas = !totalMaquinasCalc;
+    const totalMaquinas = usandoRefMaquinas ? REF.itens.op_maquinas.rha*(lavoura.area||0) : totalMaquinasCalc;
+    c.innerHTML = `
+      <div class="stitle">Operação de Máquinas</div>
+      <div class="fhint" style="margin-bottom:10px">Para cada fase da produção, informe os veículos/máquinas que vão ser
+        usados (próprios ou contratados): potência, implemento acoplado e número de passadas previsto na lavoura ao
+        longo de <b>toda a safra</b>. O app prevê o custo de operação a partir desses dados técnicos, você não precisa
+        saber de antemão quanto vai gastar. Se o <b>mesmo veículo</b> for usado em mais de uma fase (ex.: o trator que
+        corrige o solo também puxa o pulverizador), cadastre-o em cada fase separadamente, com o mesmo "Valor do bem"
+        nas duas, mas com a largura, velocidade e passadas daquela operação específica: o app distribui a depreciação,
+        o seguro e a remuneração do capital proporcionalmente às horas de cada fase, sem contar o valor do veículo em dobro.</div>
+      <datalist id="dl-implementos">${IMPLEMENTOS_SUGERIDOS.map(i=>`<option value="${i}">`).join('')}</datalist>
+      <datalist id="dl-fases">${FASES_MAQUINAS_PADRAO.map(i=>`<option value="${i}">`).join('')}</datalist>
+      ` + fasesMaquinas.map((fase,fi)=>`
+      <div class="card" style="border-color:var(--gold-pale);margin-bottom:10px">
+        <div class="fg oc-row" style="margin-bottom:10px">
+          <div class="oc-desc" style="flex:1"><label>Fase da produção</label>
+            <input type="text" id="fase-nome-${fi}" list="dl-fases" placeholder="Ex: Preparo do Solo" value="${fase.nome||''}"></div>
+          ${fasesMaquinas.length>1 ? `<button type="button" class="bsecondary oc-remove" onclick="removerFaseMaquina(${fi})">Remover fase</button>` : ''}
+        </div>
+        ${fase.veiculos.map((v,vi)=>`
+        <div class="item-card" style="background:var(--cream2)">
+          <div class="item-top"><span class="item-name">Veículo ${vi+1}</span>
+            ${fase.veiculos.length>1 ? `<button type="button" class="bghost" style="padding:2px 4px" onclick="removerVeiculoMaquina(${fi},${vi})">Remover</button>` : ''}</div>
+          <div class="fg"><label>Tipo de máquina</label>
+            <select id="veic-tipo-${fi}-${vi}" onchange="mudarTipoMaquina(${fi},${vi},this.value)">
+              ${CATALOGO_MAQUINAS.map(cM=>`<option value="${cM.nome}"${cM.nome===v.tipo?' selected':''}>${cM.nome}</option>`).join('')}
+            </select></div>
+          <div class="fg"><label>Veículo/Modelo</label>
+            <input type="text" id="veic-nome-${fi}-${vi}" placeholder="Ex: Trator Valtra BH180" value="${v.nome||''}"></div>
+          <div class="fg"><label>Implemento</label>
+            <input type="text" id="veic-implemento-${fi}-${vi}" list="dl-implementos" placeholder="Ex: Pulverizador de Arrasto" value="${v.implemento||''}"></div>
+          <div class="fhint" style="margin-bottom:8px">O app não pergunta quanto você vai gastar com esse veículo: ele
+            <b>prevê</b> esse valor a partir dos dados técnicos abaixo, com a mesma fórmula da Metodologia da Aprosoja/MS
+            usada para calcular a própria média Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto somente se você
+            quiser essa previsão para este veículo; se deixar todos vazios, ele fica de fora do cálculo (tanto do custo
+            de operação quanto da depreciação, do seguro e da remuneração do capital fixo).</div>
+          <div class="fg oc-row">
+            <div class="oc-valor" style="flex:1"><label>Potência (cv) *</label>
+              <input type="number" id="veic-potencia-${fi}-${vi}" inputmode="decimal" min="0" step="5" value="${v.potencia||''}"></div>
+            <div class="oc-valor" style="flex:1"><label>Passadas na safra *</label>
+              <input type="number" id="veic-passadas-${fi}-${vi}" inputmode="decimal" min="0" step="1" value="${v.passadas||''}"></div>
+          </div>
+          <div class="fg"><label>Valor do bem (R$) *</label>
+            <input type="number" id="veic-valorbem-${fi}-${vi}" inputmode="decimal" min="0" step="1000" value="${v.valorBem||''}">
+            <div class="fhint">Valor de mercado/aquisição do veículo (patrimônio), não o gasto previsto da safra.</div></div>
+          <div class="fg oc-row">
+            <div class="oc-valor" style="flex:1"><label>Largura de trabalho (m) *</label>
+              <input type="number" id="veic-largura-${fi}-${vi}" inputmode="decimal" min="0" step="0.5" value="${v.largura||''}"></div>
+            <div class="oc-valor" style="flex:1"><label>Velocidade (km/h) *</label>
+              <input type="number" id="veic-velocidade-${fi}-${vi}" inputmode="decimal" min="0" step="0.5" value="${v.velocidade||''}"></div>
+          </div>
+          ${(()=>{
+            const c = custoOperacaoVeiculo(v, lavoura.area||0);
+            if(!c.total) return '';
+            return `<div class="fhint">Custo de operação previsto: <b>${brl(c.total)}</b> (${brl(c.rha)}/ha) · ≈ ${n1(horasHaVeiculo(v))} h/ha na safra.
+              Vida útil: ${n1(v.vidaUtilAnos)} anos (${n1(v.vidaUtilHoras)} h) · Residual: ${((v.residual||0)*100).toFixed(0)}% (${v.tipo}, Metodologia Aprosoja/MS).</div>`;
+          })()}
+        </div>`).join('')}
+        <button type="button" class="bsecondary" style="width:100%" onclick="adicionarVeiculoMaquina(${fi})">Adicionar veículo nesta fase</button>
+      </div>`).join('') + `
+      <button type="button" class="bsecondary" style="width:100%;margin-bottom:12px" onclick="adicionarFaseMaquina()">Adicionar nova fase da produção</button>
+      <div class="resumo-row"><span>Total previsto de Operação de Máquinas</span><b>${brl(totalMaquinas)}</b></div>
+      <div class="fhint">${usandoRefMaquinas
+        ? 'Nenhum veículo com dados completos: usando a média Aprosoja/MS para o total.'
+        : 'Calculado a partir dos dados técnicos dos veículos informados acima.'}</div>
     `;
   }else if(step.tipo==='outros_custos'){
     c.innerHTML = `
       <div class="stitle">Outros Custos</div>
-      <div class="fhint" style="margin-bottom:10px">Adicione aqui custos da sua lavoura que não se encaixam nas categorias anteriores. Campo opcional.</div>
+      <div class="fhint" style="margin-bottom:10px">Adicione aqui custos previstos da sua lavoura que não se encaixam nas
+        categorias anteriores. Campo opcional. Se o custo for cotado em sacas por hectare (comum em arrendamento),
+        escolha "sc/ha": o app converte para R$ sozinho, usando o preço de venda informado.</div>
       ` + outrosCustos.map((oc,i)=>`
       <div class="fg oc-row">
         <div class="oc-desc"><label>${i===0?'Descrição':''}</label>
-          <input type="text" id="oc-desc-${i}" placeholder="Ex: Frete extra" value="${oc.descricao||''}"></div>
-        <div class="oc-valor"><label>${i===0?'Valor (R$)':''}</label>
-          <input type="number" id="oc-valor-${i}" inputmode="decimal" min="0" step="50" value="${oc.valor||''}"></div>
+          <input type="text" id="oc-desc-${i}" placeholder="Ex: Arrendamento" value="${oc.descricao||''}"></div>
+        <div class="oc-valor"><label>${i===0?'Valor':''}</label>
+          <div style="display:flex;gap:4px">
+            <input type="number" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" min="0" step="${oc.unidade==='scha'?'0.5':'50'}" value="${oc.valor||''}">
+            <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 4px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
+              <option value="total"${oc.unidade!=='scha'?' selected':''}>R$</option>
+              <option value="scha"${oc.unidade==='scha'?' selected':''}>sc/ha</option>
+            </select>
+          </div></div>
         <button type="button" class="bsecondary oc-remove" onclick="removerOutroCusto(${i})">Remover</button>
-      </div>`).join('') + `
+      </div>
+      ${oc.unidade==='scha'&&oc.valor>0 ? `<div class="fhint" style="margin:-4px 0 10px">≈ ${brl(outroCustoRha(oc,lavoura.area||0,lavoura.preco||0))}/ha,
+        ${brl(outroCustoTotalReais(oc,lavoura.area||0,lavoura.preco||0))} no total (convertido pelo preço de venda de ${brl(lavoura.preco||0)}/sc).</div>` : ''}`).join('') + `
       <button type="button" class="bsecondary" style="width:100%;margin-top:6px" onclick="adicionarOutroCusto()">Adicionar outro custo</button>
+    `;
+  }else if(step.tipo==='benfeitorias'){
+    c.innerHTML = `
+      <div class="stitle">Benfeitorias e Instalações</div>
+      <div class="fhint" style="margin-bottom:10px">Galpões, armazéns, cercas, poços etc. usados na produção. Com esses dados
+        o app já calcula a depreciação e a manutenção das benfeitorias, além de somar ao seguro e à remuneração do capital
+        fixo, junto com as máquinas. Campo opcional: deixe vazio para usar a média Aprosoja/MS nesses itens.</div>
+      <datalist id="dl-benfeitorias">${CATALOGO_BENFEITORIAS.map(i=>`<option value="${i.nome}">`).join('')}</datalist>
+      ` + benfeitorias.map((b,bi)=>`
+      <div class="item-card" style="background:var(--cream2)">
+        <div class="item-top"><span class="item-name">Benfeitoria ${bi+1}</span>
+          <button type="button" class="bghost" style="padding:2px 4px" onclick="removerBenfeitoria(${bi})">Remover</button></div>
+        <div class="fg"><label>Tipo</label>
+          <select id="benf-tipo-${bi}" onchange="mudarTipoBenfeitoria(${bi},this.value)">
+            ${CATALOGO_BENFEITORIAS.map(cB=>`<option value="${cB.nome}"${cB.nome===b.tipo?' selected':''}>${cB.nome}</option>`).join('')}
+          </select></div>
+        <div class="fg"><label>Nome/Função</label>
+          <input type="text" id="benf-nome-${bi}" placeholder="Ex: Galpão de Máquinas" value="${b.nome||''}"></div>
+        <div class="fg oc-row">
+          <div class="oc-valor" style="flex:1"><label>Valor do bem (R$) *</label>
+            <input type="number" id="benf-valor-${bi}" inputmode="decimal" min="0" step="1000" value="${b.valor||''}"></div>
+          <div class="oc-valor" style="flex:1"><label>% de Ocupação *</label>
+            <input type="number" id="benf-ocupacao-${bi}" inputmode="decimal" min="0" max="100" step="5" value="${(b.ocupacao!=null?b.ocupacao:1)*100}"></div>
+        </div>
+        <div class="fhint">* Obrigatórios em conjunto somente se quiser calcular depreciação, seguro e remuneração desta
+          benfeitoria; senão, deixe os dois vazios. Vida útil: ${n1(b.vidaUtilAnos)} anos. Residual: ${((b.residual||0)*100).toFixed(0)}%
+          (${b.tipo}, Metodologia Aprosoja/MS).</div>
+      </div>`).join('') + `
+      <button type="button" class="bsecondary" style="width:100%" onclick="adicionarBenfeitoria()">Adicionar benfeitoria</button>
     `;
   }else{
     const modo = step.modo;
+    const camposEditaveis = step.campos.filter(k=>!CAMPOS_AUTOCALCULADOS.includes(k));
+    let hintTopo;
+    if(modo==='total'){
+      hintTopo = `Informe o valor <b>total previsto para a safra</b> (R$) em cada item.`;
+    }else if(camposEditaveis.length===0){
+      hintTopo = `Preenchido automaticamente por cálculo, com base nos dados de máquinas e benfeitorias informados nas etapas anteriores. Nada para digitar aqui.`;
+    }else if(camposEditaveis.length<step.campos.length){
+      hintTopo = `Os itens calculados vêm automaticamente dos dados de máquinas e benfeitorias informados nas etapas anteriores.
+        Os demais, em <b>R$/ha</b>, já vêm preenchidos com a média Aprosoja/MS; ajuste se souber o seu valor real.`;
+    }else{
+      hintTopo = `Informe em <b>R$/ha</b>, já preenchido com a média Aprosoja/MS; ajuste se souber o seu valor real.`;
+    }
     c.innerHTML = `<div class="stitle">${step.nome}</div>` +
-      (modo==='total' ? `<div class="fhint" style="margin-bottom:10px">Informe o valor <b>total gasto na safra</b> (R$) em cada item.</div>`
-                       : `<div class="fhint" style="margin-bottom:10px">Informe em <b>R$/ha</b>, já preenchido com a média Aprosoja/MS; ajuste se souber o seu valor real.</div>`) +
+      `<div class="fhint" style="margin-bottom:10px">${hintTopo}</div>` +
       step.campos.map(k=>{
+        if(CAMPOS_AUTOCALCULADOS.includes(k)){
+          const calc = calcularCustosFixosCapital(fasesMaquinas, benfeitorias, lavoura.area||0);
+          const usandoRef = !calc[k];
+          const refRha = REF.itens[k].rha;
+          const exibido = usandoRef ? refRha : calc[k];
+          valores[k] = exibido;
+          return `
+          <div class="fg"><label>${LABELS[k]} (R$/ha)</label>
+            <div style="padding:11px 12px;background:var(--cream2);border:1.5px solid var(--bd);border-radius:9px;font-weight:700;color:var(--gd)">${brl(exibido)}/ha</div>
+            <div class="fhint">${usandoRef
+              ? 'Nenhum dado de máquina ou benfeitoria informado; usando a média Aprosoja/MS.'
+              : 'Calculado a partir dos dados de máquinas e benfeitorias informados nas etapas anteriores.'}</div>
+          </div>`;
+        }
         const refRha = REF.itens[k].rha;
         const val = valores[k];
         const refHint = modo==='total' ? brl(refRha*(lavoura.area||0)) : brl(refRha)+'/ha';
@@ -739,11 +1034,55 @@ function lerCamposEtapa(){
     return true;
   }
   if(step.tipo==='revisao') return true;
+  if(step.tipo==='maquinas'){
+    fasesMaquinas.forEach((fase,fi)=>{
+      const fEl = document.getElementById('fase-nome-'+fi);
+      if(fEl) fase.nome = fEl.value.trim();
+      fase.veiculos.forEach((v,vi)=>{
+        const nEl = document.getElementById(`veic-nome-${fi}-${vi}`);
+        const tEl = document.getElementById(`veic-tipo-${fi}-${vi}`);
+        const pEl = document.getElementById(`veic-potencia-${fi}-${vi}`);
+        const iEl = document.getElementById(`veic-implemento-${fi}-${vi}`);
+        const psEl = document.getElementById(`veic-passadas-${fi}-${vi}`);
+        const vbEl = document.getElementById(`veic-valorbem-${fi}-${vi}`);
+        const laEl = document.getElementById(`veic-largura-${fi}-${vi}`);
+        const veEl = document.getElementById(`veic-velocidade-${fi}-${vi}`);
+        if(nEl) v.nome = nEl.value.trim();
+        if(tEl) v.tipo = tEl.value;
+        if(pEl) v.potencia = parseFloat(pEl.value)||0;
+        if(iEl) v.implemento = iEl.value.trim();
+        if(psEl) v.passadas = parseFloat(psEl.value)||0;
+        if(vbEl) v.valorBem = parseFloat(vbEl.value)||0;
+        if(laEl) v.largura = parseFloat(laEl.value)||0;
+        if(veEl) v.velocidade = parseFloat(veEl.value)||0;
+      });
+    });
+    {
+      const calc = totalOperacaoMaquinas(fasesMaquinas, lavoura.area||0);
+      valores.op_maquinas = calc || REF.itens.op_maquinas.rha*(lavoura.area||0);
+    }
+    return true;
+  }
+  if(step.tipo==='benfeitorias'){
+    benfeitorias.forEach((b,bi)=>{
+      const tEl = document.getElementById('benf-tipo-'+bi);
+      const nEl = document.getElementById('benf-nome-'+bi);
+      const vEl = document.getElementById('benf-valor-'+bi);
+      const oEl = document.getElementById('benf-ocupacao-'+bi);
+      if(tEl) b.tipo = tEl.value;
+      if(nEl) b.nome = nEl.value.trim();
+      if(vEl) b.valor = parseFloat(vEl.value)||0;
+      if(oEl) b.ocupacao = (parseFloat(oEl.value)||0)/100;
+    });
+    return true;
+  }
   if(step.tipo==='outros_custos'){
     outrosCustos.forEach((oc,i)=>{
       const dEl = document.getElementById('oc-desc-'+i), vEl = document.getElementById('oc-valor-'+i);
+      const uEl = document.getElementById('oc-unidade-'+i);
       if(dEl) oc.descricao = dEl.value.trim();
       if(vEl) oc.valor = parseFloat(vEl.value)||0;
+      if(uEl) oc.unidade = uEl.value;
     });
     return true;
   }
@@ -762,6 +1101,25 @@ function validarEtapa(){
     if(lavoura.area<=0) erros.push('<b>Área</b> deve ser maior que zero.');
     if(lavoura.produtividade<=0) erros.push('<b>Produtividade</b> deve ser maior que zero.');
     if(lavoura.preco<=0) erros.push('<b>Preço de venda</b> deve ser maior que zero.');
+  }
+  if(step.tipo==='maquinas'){
+    fasesMaquinas.forEach((fase,fi)=>{
+      fase.veiculos.forEach((v,vi)=>{
+        const algum = v.valorBem>0 || v.largura>0 || v.velocidade>0;
+        if(!algum) return;
+        const rotulo = `${fase.nome||('Fase '+(fi+1))} · Veículo ${vi+1}`;
+        if(!(v.valorBem>0)) erros.push(`"${rotulo}": informe o <b>Valor do bem</b> ou apague os outros campos de depreciação.`);
+        if(!(v.largura>0)) erros.push(`"${rotulo}": informe a <b>Largura de trabalho</b> ou apague os outros campos de depreciação.`);
+        if(!(v.velocidade>0)) erros.push(`"${rotulo}": informe a <b>Velocidade</b> ou apague os outros campos de depreciação.`);
+        if(!(v.passadas>0)) erros.push(`"${rotulo}": informe as <b>Passadas na safra</b> ou apague os outros campos de depreciação.`);
+      });
+    });
+  }
+  if(step.tipo==='benfeitorias'){
+    benfeitorias.forEach((b,bi)=>{
+      if(!(b.valor>0)) return; // sem Valor do bem, essa benfeitoria não entra no cálculo, nada a exigir
+      if(!(b.ocupacao>0)) erros.push(`Benfeitoria ${bi+1}: informe a <b>% de Ocupação</b> (ou deixe 100%).`);
+    });
   }
   if(erros.length){
     document.getElementById('errs').innerHTML = erros.map(e=>`<div class="err">${e}</div>`).join('');
@@ -798,14 +1156,65 @@ function stepBack(){
   renderStep();
   window.scrollTo({top:0,behavior:'smooth'});
 }
+function adicionarFaseMaquina(){
+  lerCamposEtapa();
+  fasesMaquinas.push(novaFaseMaquina());
+  renderStep();
+}
+function removerFaseMaquina(fi){
+  lerCamposEtapa();
+  fasesMaquinas.splice(fi,1);
+  renderStep();
+}
+function adicionarVeiculoMaquina(fi){
+  lerCamposEtapa();
+  fasesMaquinas[fi].veiculos.push(novoVeiculoMaquina());
+  renderStep();
+}
+function removerVeiculoMaquina(fi,vi){
+  lerCamposEtapa();
+  fasesMaquinas[fi].veiculos.splice(vi,1);
+  renderStep();
+}
+function mudarTipoMaquina(fi,vi,tipoNome){
+  lerCamposEtapa();
+  const v = fasesMaquinas[fi].veiculos[vi];
+  v.tipo = tipoNome;
+  const cat = CATALOGO_MAQUINAS.find(c=>c.nome===tipoNome);
+  if(cat){ v.vidaUtilAnos=cat.anos; v.vidaUtilHoras=cat.horas; v.residual=cat.residual; }
+  renderStep();
+}
+function adicionarBenfeitoria(){
+  lerCamposEtapa();
+  benfeitorias.push(novaBenfeitoria());
+  renderStep();
+}
+function removerBenfeitoria(bi){
+  lerCamposEtapa();
+  benfeitorias.splice(bi,1);
+  renderStep();
+}
+function mudarTipoBenfeitoria(bi,tipoNome){
+  lerCamposEtapa();
+  const b = benfeitorias[bi];
+  b.tipo = tipoNome;
+  const cat = CATALOGO_BENFEITORIAS.find(c=>c.nome===tipoNome);
+  if(cat){ b.vidaUtilAnos=cat.anos; b.residual=cat.residual; }
+  renderStep();
+}
 function adicionarOutroCusto(){
   lerCamposEtapa();
-  outrosCustos.push({descricao:'', valor:0});
+  outrosCustos.push({descricao:'', valor:0, unidade:'total'});
   renderStep();
 }
 function removerOutroCusto(i){
   lerCamposEtapa();
   outrosCustos.splice(i,1);
+  renderStep();
+}
+function mudarUnidadeOutroCusto(i,unidade){
+  lerCamposEtapa();
+  outrosCustos[i].unidade = unidade;
   renderStep();
 }
 
@@ -827,8 +1236,22 @@ function svgDonut(fatias, custoTotalRha){
   return `<svg width="128" height="128" viewBox="0 0 128 128">${segs}</svg>`;
 }
 
+// ─── DETALHE DA OPERAÇÃO DE MÁQUINAS (fases → veículos) ────────────────────────
+function linhasMaquinas(maquinasDetalhe, area){
+  const linhas=[];
+  (maquinasDetalhe||[]).forEach(fase=>{
+    (fase.veiculos||[]).forEach(v=>{
+      const custo = custoOperacaoVeiculo(v, area);
+      if(!v.nome && !custo.total) return;
+      linhas.push({fase:fase.nome||'-', veiculo:v.nome||'-', potencia:v.potencia||0,
+        implemento:v.implemento||'-', passadas:v.passadas||0, valor:custo.total, rha:custo.rha});
+    });
+  });
+  return linhas;
+}
+
 // ─── RELATÓRIO TÉCNICO (conteúdo exclusivo do PDF impresso) ─────────────────────
-function montarRelatorioPDF(r, meta, geradoEm){
+function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDetalhe){
   const ct = r.agregados.custo_total, cv = r.agregados.custo_variavel,
         cf = r.agregados.custo_fixo, co = r.agregados.custo_operacional;
 
@@ -850,11 +1273,13 @@ function montarRelatorioPDF(r, meta, geradoEm){
   const secResumo = `
     <div class="pdf-sec">
       <div class="pdf-h2">Resumo Executivo</div>
-      <p class="pdf-lead">O custo total de produção da lavoura de soja de <b>${meta.produtor||'produtor não identificado'}</b>,
-      no município de <b>${meta.municipio||'-'}</b> (safra ${meta.safra}), foi calculado em <b>${brl(r.custo_total_rha)}/ha</b>
-      (${brl(r.custo_sc_total)}/sc), ${posicaoTexto}. Considerando produtividade de ${n1(r.produtividade)} sc/ha e preço de
-      venda de ${brl(r.preco)}/sc, a receita bruta estimada é de ${brl(r.receita_rha)}/ha, resultando em margem total de
-      ${brl(r.margem_total_rha)}/ha (${(r.lucratividade_pct*100).toFixed(1)}% sobre a receita bruta), com margem ${situacaoMargem}.</p>
+      <p class="pdf-lead">O custo total de produção previsto para a lavoura de soja de <b>${meta.produtor||'produtor não identificado'}</b>,
+      no município de <b>${meta.municipio||'-'}</b> (safra ${meta.safra}), é de <b>${brl(r.custo_total_rha)}/ha</b>
+      (${brl(r.custo_sc_total)}/sc), ${posicaoTexto}. Considerando produtividade esperada de ${n1(r.produtividade)} sc/ha e
+      preço de venda de ${brl(r.preco)}/sc, a receita bruta prevista é de ${brl(r.receita_rha)}/ha, resultando em margem total
+      prevista de ${brl(r.margem_total_rha)}/ha (${(r.lucratividade_pct*100).toFixed(1)}% sobre a receita bruta), com margem ${situacaoMargem}.
+      Este relatório é uma previsão para planejar a safra antes do plantio, com base nos dados técnicos informados pelo
+      produtor e na média de custos apurada pela Aprosoja/MS.</p>
     </div>`;
 
   const secDados = `
@@ -887,6 +1312,49 @@ function montarRelatorioPDF(r, meta, geradoEm){
       </table>
     </div>`;
 
+  const linhasMaq = linhasMaquinas(maquinasDetalhe, r.area);
+  const totalMaqValor = linhasMaq.reduce((s,l)=>s+l.valor,0);
+  const totalMaqRha = linhasMaq.reduce((s,l)=>s+l.rha,0);
+  const secMaquinas = linhasMaq.length ? `
+    <div class="pdf-sec">
+      <div class="pdf-h2">3. Detalhamento da Operação de Máquinas</div>
+      <p class="pdf-p">Máquinas, veículos e implementos previstos para cada fase da produção, com a potência e o número
+      de passadas na lavoura ao longo de toda a safra informados pelo produtor. O custo de operação é previsto pelo
+      app a partir desses dados técnicos, seguindo a Metodologia de Custo de Produção da Aprosoja/MS.</p>
+      <table class="pdf-table">
+        <thead><tr><th>Fase</th><th>Veículo/Máquina</th><th>Implemento</th><th class="num">Potência (cv)</th>
+          <th class="num">Passadas</th><th class="num">Custo Previsto (R$)</th><th class="num">R$/ha</th></tr></thead>
+        <tbody>${linhasMaq.map(l=>`
+          <tr><td>${l.fase}</td><td>${l.veiculo}</td><td>${l.implemento}</td><td class="num">${n1(l.potencia)}</td>
+            <td class="num">${n1(l.passadas)}</td><td class="num">${brl(l.valor)}</td><td class="num">${brl(l.rha)}</td></tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td colspan="5">Total</td><td class="num">${brl(totalMaqValor)}</td><td class="num">${brl(totalMaqRha)}</td></tr></tfoot>
+      </table>
+    </div>` : '';
+
+  const capMaq = calcularCustosMaquinas(maquinasDetalhe);
+  const capBenf = calcularCustosBenfeitorias(benfeitoriasDetalhe, r.area);
+  const temCapitalFixo = (capMaq.deprec+capMaq.seguro+capMaq.renda+capBenf.deprec+capBenf.manut+capBenf.seguro+capBenf.renda) > 0;
+  const secCapitalFixo = temCapitalFixo ? `
+    <div class="pdf-sec">
+      <div class="pdf-h2">4. Depreciação, Seguro e Remuneração do Capital Fixo</div>
+      <p class="pdf-p">Calculado a partir do valor, da vida útil e do valor residual das máquinas e benfeitorias
+      informadas, conforme a Metodologia de Custo de Produção da Aprosoja/MS. Onde não há dado de
+      máquina/benfeitoria suficiente, o item correspondente usa a média Aprosoja/MS.</p>
+      <table class="pdf-table">
+        <thead><tr><th>Origem</th><th class="num">Depreciação (R$/ha)</th><th class="num">Manutenção (R$/ha)</th>
+          <th class="num">Seguro do Capital (R$/ha)</th><th class="num">Remuneração do Capital (R$/ha)</th></tr></thead>
+        <tbody>
+          <tr><td>Máquinas e Implementos</td><td class="num">${brl(capMaq.deprec)}</td><td class="num">-</td>
+            <td class="num">${brl(capMaq.seguro)}</td><td class="num">${brl(capMaq.renda)}</td></tr>
+          <tr><td>Benfeitorias e Instalações</td><td class="num">${brl(capBenf.deprec)}</td><td class="num">${brl(capBenf.manut)}</td>
+            <td class="num">${brl(capBenf.seguro)}</td><td class="num">${brl(capBenf.renda)}</td></tr>
+        </tbody>
+        <tfoot><tr><td>Total</td><td class="num">${brl(capMaq.deprec+capBenf.deprec)}</td><td class="num">${brl(capBenf.manut)}</td>
+          <td class="num">${brl(capMaq.seguro+capBenf.seguro)}</td><td class="num">${brl(capMaq.renda+capBenf.renda)}</td></tr></tfoot>
+      </table>
+    </div>` : '';
+
   const outrosChaves = Object.keys(r.itens).filter(k=>k.startsWith('outro_'));
   const outrosTotalRha = outrosChaves.reduce((s,k)=>s+r.itens[k].rha,0);
   const outrosPct = r.custo_total_rha ? outrosTotalRha/r.custo_total_rha : 0;
@@ -899,7 +1367,7 @@ function montarRelatorioPDF(r, meta, geradoEm){
 
   const secComposicao = `
     <div class="pdf-sec">
-      <div class="pdf-h2">3. Composição do Custo por Categoria</div>
+      <div class="pdf-h2">5. Composição do Custo por Categoria</div>
       <p class="pdf-p">As categorias com maior participação no custo total são ${nomesTop3}, que juntas somam
       ${pct0(somaTop3)} do custo total de produção. A tabela a seguir detalha a participação de cada categoria,
       da maior para a menor.</p>
@@ -921,7 +1389,7 @@ function montarRelatorioPDF(r, meta, geradoEm){
   }
   const secComparativo = `
     <div class="pdf-sec">
-      <div class="pdf-h2">4. Comparativo com a Média Aprosoja/MS</div>
+      <div class="pdf-h2">6. Comparativo com a Média Aprosoja/MS</div>
       <p class="pdf-p">${textoComparativo}</p>
       <table class="pdf-table">
         <thead><tr><th>Categoria</th><th class="num">Você (R$/ha)</th><th class="num">Média MS (R$/ha)</th>
@@ -936,7 +1404,7 @@ function montarRelatorioPDF(r, meta, geradoEm){
 
   const secEquilibrio = `
     <div class="pdf-sec">
-      <div class="pdf-h2">5. Ponto de Equilíbrio e Margem</div>
+      <div class="pdf-h2">7. Ponto de Equilíbrio e Margem</div>
       <p class="pdf-p">O ponto de equilíbrio operacional (produtividade mínima para cobrir apenas o custo operacional)
       é de ${n1(r.ponto_eq_operacional)} sc/ha. Já o ponto de equilíbrio total, que inclui também o custo de
       oportunidade do capital investido, é de ${n1(r.ponto_eq_total)} sc/ha. Com produtividade real de
@@ -959,7 +1427,7 @@ function montarRelatorioPDF(r, meta, geradoEm){
 
   const secDetalhe = `
     <div class="pdf-sec">
-      <div class="pdf-h2">6. Detalhamento Completo por Item</div>
+      <div class="pdf-h2">8. Detalhamento Completo por Item</div>
       <table class="pdf-table">
         <thead><tr><th>Item</th><th class="num">R$/ha</th><th class="num">sc/ha</th><th class="num">% do custo</th>
           <th class="num">Média MS</th><th>Situação</th></tr></thead>
@@ -973,25 +1441,30 @@ function montarRelatorioPDF(r, meta, geradoEm){
       </table>
     </div>`;
 
+  const economiaTexto = acimaOrd.length ? `Antes de plantar, vale revisar ${acimaOrd.slice(0,2).map(([nome])=>`<b>${nome}</b>`).join(' e ')}:
+    ${acimaOrd.slice(0,2).map(([nome,g])=>`${nome} está prevista ${(g.delta_pct*100).toFixed(0)}% acima da média, um potencial
+    de economia de ${Math.abs(g.delta_scha).toFixed(1)} sc/ha se ajustada para a média Aprosoja/MS`).join('; ')}.` : '';
+  const pontoForteTexto = abaixoOrd.length ? `Já ${abaixoOrd.slice(0,1).map(([nome])=>`<b>${nome}</b>`).join('')} está prevista
+    ${Math.abs(abaixoOrd[0][1].delta_pct*100).toFixed(0)}% abaixo da média, um ponto forte do planejamento que vale manter.` : '';
   const conclusaoTexto = ct.status==='acima'
-    ? `O custo de produção está acima da média regional. Recomenda-se revisar prioritariamente as categorias
-      com maior desvio identificadas na seção 4, buscando oportunidades de redução sem comprometer a produtividade.`
+    ? `O custo total previsto está acima da média regional. ${economiaTexto} ${pontoForteTexto}`
     : ct.status==='abaixo'
-    ? `O custo de produção está abaixo da média regional, indicando eficiência operacional. Recomenda-se manter
-      o acompanhamento periódico dos custos para sustentar esse resultado nas próximas safras.`
-    : `O custo de produção está em linha com a média regional. Recomenda-se manter o monitoramento periódico e
-      reavaliar os itens de maior peso a cada safra.`;
+    ? `O custo total previsto já está abaixo da média regional, um bom indício para a safra. ${pontoForteTexto} ${economiaTexto}`
+    : `O custo total previsto está em linha com a média regional. ${economiaTexto} ${pontoForteTexto}`;
   const secConclusao = `
     <div class="pdf-sec">
-      <div class="pdf-h2">7. Conclusão</div>
-      <p class="pdf-p">${conclusaoTexto} Este relatório deve ser interpretado como referência gerencial, a partir de
-      dados autodeclarados e da média de custos apurada pela Aprosoja/MS para a safra ${meta.safra}.</p>
+      <div class="pdf-h2">9. Conclusão</div>
+      <p class="pdf-p">${conclusaoTexto} Recomenda-se revisar esta previsão ao longo da safra, à medida que os gastos
+      reais forem conhecidos. Este relatório deve ser interpretado como referência de planejamento, a partir de dados
+      técnicos informados pelo produtor e da média de custos apurada pela Aprosoja/MS para a safra ${meta.safra}.</p>
     </div>`;
 
-  return `<div class="pdf-only">${secResumo}${secDados}${secEstrutura}${secComposicao}${secComparativo}${secEquilibrio}${secDetalhe}${secConclusao}</div>`;
+  return `<div class="pdf-only">${secResumo}${secDados}${secEstrutura}${secMaquinas}${secCapitalFixo}${secComposicao}${secComparativo}${secEquilibrio}${secDetalhe}${secConclusao}</div>`;
 }
 
-function renderRelatorio(r, meta){
+function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
+  maquinasDetalhe = maquinasDetalhe || [];
+  benfeitoriasDetalhe = benfeitoriasDetalhe || [];
   const mc = r.margem_total_rha>=0 ? 'g':'r';
   const mo = r.margem_operacional_rha>=0 ? 'g':'r';
   const fatiasItens = Object.keys(r.itens).map(k=>({
@@ -1046,7 +1519,7 @@ function renderRelatorio(r, meta){
       <div class="ph-top">
         <img src="./Aprosoja-logo.png" alt="Aprosoja/MS" onerror="this.style.display='none'">
         <div>
-          <div class="ph-title">Relatório de Custo de Produção - Soja</div>
+          <div class="ph-title">Relatório de Previsão de Custo de Produção - Soja</div>
           <div class="ph-sub">Aprosoja/MS · Safra ${meta.safra} · Gerado em ${geradoEm}</div>
         </div>
       </div>
@@ -1063,7 +1536,7 @@ function renderRelatorio(r, meta){
     </div>
 
     <div class="card no-print" style="border-color:var(--gold)">
-      <div class="stitle">Relatório - ${meta.municipio} · ${n1(r.area)} ha · Safra ${meta.safra}</div>
+      <div class="stitle">Previsão - ${meta.municipio} · ${n1(r.area)} ha · Safra ${meta.safra}</div>
       <div class="kgrid">
         <div class="kcard"><div class="klbl">Custo Total</div><div class="kval">${brl(r.custo_total_rha)}</div><div class="ksub">/ha</div></div>
         <div class="kcard"><div class="klbl">Custo / Saca</div><div class="kval">${brl(r.custo_sc_total)}</div><div class="ksub">R$/sc</div></div>
@@ -1096,10 +1569,56 @@ function renderRelatorio(r, meta){
       ${itemRows}
     </div>
 
-    ${montarRelatorioPDF(r, meta, geradoEm)}
+    ${(()=>{
+      const linhasMaq = linhasMaquinas(maquinasDetalhe, r.area);
+      if(!linhasMaq.length) return '';
+      return `<div class="card no-print">
+        <div class="stitle">Detalhamento da Operação de Máquinas</div>
+        ${linhasMaq.map(l=>`
+        <div class="item-card">
+          <div class="item-top"><span class="item-name">${l.fase} · ${l.veiculo}</span><span class="badge dentro">${brl(l.valor)}</span></div>
+          <div class="item-grid">
+            <div>Potência<b>${n1(l.potencia)} cv</b></div>
+            <div>Implemento<b>${l.implemento}</b></div>
+            <div>Passadas<b>${n1(l.passadas)}</b></div>
+            <div>R$/ha<b>${l.rha.toFixed(2)}</b></div>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    })()}
+
+    ${(()=>{
+      const capMaq = calcularCustosMaquinas(maquinasDetalhe);
+      const capBenf = calcularCustosBenfeitorias(benfeitoriasDetalhe, r.area);
+      if((capMaq.deprec+capMaq.seguro+capMaq.renda+capBenf.deprec+capBenf.manut+capBenf.seguro+capBenf.renda)<=0) return '';
+      return `<div class="card no-print">
+        <div class="stitle">Depreciação, Seguro e Remuneração do Capital Fixo</div>
+        <div class="fhint" style="margin-bottom:8px">Calculado a partir do valor, vida útil e residual das máquinas
+          e benfeitorias informadas (Metodologia da Aprosoja/MS).</div>
+        <div class="item-card">
+          <div class="item-top"><span class="item-name">Máquinas e Implementos</span></div>
+          <div class="item-grid">
+            <div>Depreciação<b>${brl(capMaq.deprec)}</b></div>
+            <div>Seguro Capital<b>${brl(capMaq.seguro)}</b></div>
+            <div>Remun. Capital<b>${brl(capMaq.renda)}</b></div>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-top"><span class="item-name">Benfeitorias e Instalações</span></div>
+          <div class="item-grid">
+            <div>Depreciação<b>${brl(capBenf.deprec)}</b></div>
+            <div>Manutenção<b>${brl(capBenf.manut)}</b></div>
+            <div>Seguro Capital<b>${brl(capBenf.seguro)}</b></div>
+            <div>Remun. Capital<b>${brl(capBenf.renda)}</b></div>
+          </div>
+        </div>
+      </div>`;
+    })()}
+
+    ${montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDetalhe)}
 
     <div id="print-footer">
-      Relatório gerado pelo app Calculadora de Custo e Margem, Aprosoja/MS, em ${geradoEm}.
+      Previsão gerada pelo app Calculadora de Custo e Margem, Aprosoja/MS, em ${geradoEm}.
       Dados informados pelo próprio produtor/técnico; valores de referência da média Aprosoja/MS
       (safra ${meta.safra}) para fins comparativos.
     </div>
@@ -1126,9 +1645,10 @@ async function calcularESalvar(){
   const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF, outrosCustos);
   const meta = {produtor:lavoura.produtor, municipio:lavoura.municipio, safra:REF.safra, data:new Date().toISOString().split('T')[0]};
   ultimoResultado=r; ultimaMeta=meta;
-  renderRelatorio(r, meta);
+  renderRelatorio(r, meta, fasesMaquinas, benfeitorias);
 
   const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), outros_custos:JSON.parse(JSON.stringify(outrosCustos)),
+    maquinas_detalhe:JSON.parse(JSON.stringify(fasesMaquinas)), benfeitorias_detalhe:JSON.parse(JSON.stringify(benfeitorias)),
     resultado:r, safra:REF.safra, cultura:'Soja', status:'pending', created_at:new Date().toISOString()};
   await dbAdd(entry);
   atualizarBadge();
@@ -1140,6 +1660,8 @@ function novoCalculo(){
   valores={}; CAMPOS_TOTAL.forEach(k=>valores[k]=0); CAMPOS_POR_HA.forEach(k=>valores[k]=0);
   lavoura={produtor:'',municipio:'',area:0,produtividade:REF?0:0,preco:REF?REF.preco_medio:0};
   outrosCustos=[];
+  fasesMaquinas=FASES_MAQUINAS_PADRAO.map(novaFaseMaquina);
+  benfeitorias=[];
   stepIdx=0;
   document.getElementById('report-view').style.display='none';
   document.getElementById('report-view').innerHTML='';
@@ -1151,11 +1673,11 @@ function novoCalculo(){
 async function compartilharResultado(){
   if(!ultimoResultado) return;
   const r=ultimoResultado, meta=ultimaMeta;
-  const texto = `Custo de Produção - ${meta.municipio} (Safra ${meta.safra})\n`+
-    `Custo Total: ${brl(r.custo_total_rha)}/ha\n`+
+  const texto = `Previsão de Custo - ${meta.municipio} (Safra ${meta.safra})\n`+
+    `Custo Total Previsto: ${brl(r.custo_total_rha)}/ha\n`+
     `Ponto de Equilíbrio: ${n1(r.ponto_eq_total)} sc/ha\n`+
-    `Margem Total: ${brl(r.margem_total_rha)}/ha\n`+
-    `Lucratividade: ${(r.lucratividade_pct*100).toFixed(1)}%\n\n`+
+    `Margem Total Prevista: ${brl(r.margem_total_rha)}/ha\n`+
+    `Lucratividade Prevista: ${(r.lucratividade_pct*100).toFixed(1)}%\n\n`+
     `Calculado com a Calculadora de Custo e Margem, Aprosoja/MS`;
   if(navigator.share){ try{ await navigator.share({text:texto}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   if(navigator.clipboard) navigator.clipboard.writeText(texto).then(()=>showToast('Resultado copiado.'));
@@ -1305,7 +1827,7 @@ async function reabrirCalculo(id){
   if(!e||!e.resultado) return;
   ultimoResultado=e.resultado; ultimaMeta={produtor:e.produtor,municipio:e.municipio,safra:e.safra,data:e.created_at};
   showPage('calc');
-  renderRelatorio(e.resultado, ultimaMeta);
+  renderRelatorio(e.resultado, ultimaMeta, e.maquinas_detalhe||[], e.benfeitorias_detalhe||[]);
 }
 
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
