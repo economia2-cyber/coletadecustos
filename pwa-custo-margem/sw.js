@@ -1,14 +1,14 @@
 // Sobe a versão sempre que quiser forçar todo cliente instalado a descartar
 // o cache antigo por inteiro (não só os arquivos que mudaram) — o activate
 // abaixo já apaga qualquer cache com nome diferente deste.
-const CACHE = 'aprosoja-custo-v2';
-const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json', './maquinas_marcas_modelos.json'];
+const CACHE = 'aprosoja-custo-v3';
+const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json', './maquinas_marcas_modelos.json', './maquinas_anos_fabricacao.json'];
 
 // Arquivos de dados/código que mudam com frequência (a cada ajuste do app ou
 // a cada safra) — precisam ser buscados na rede primeiro, com o cache só
 // como fallback offline. Ícones/logo/manifest praticamente não mudam, esses
 // continuam cache-first (mais rápido, sem gasto de dados à toa).
-const ARQUIVOS_NETWORK_FIRST = ['index.html', 'reference.json', 'maquinas_marcas_modelos.json'];
+const ARQUIVOS_NETWORK_FIRST = ['index.html', 'reference.json', 'maquinas_marcas_modelos.json', 'maquinas_anos_fabricacao.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
