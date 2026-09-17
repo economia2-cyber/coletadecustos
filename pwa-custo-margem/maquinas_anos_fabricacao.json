@@ -538,5 +538,221 @@
     "fim": null
    }
   }
+ },
+ "Pulverizador Autopropelido": {
+  "JACTO": {
+   "UNIPORT 2000": {
+    "inicio": 1997,
+    "fim": 2010
+   },
+   "UNIPORT 2030": {
+    "inicio": 2018,
+    "fim": null
+   },
+   "UNIPORT 2500": {
+    "inicio": 2010,
+    "fim": null
+   },
+   "UNIPORT 2530": {
+    "inicio": 2016,
+    "fim": null
+   },
+   "UNIPORT 3000": {
+    "inicio": 1989,
+    "fim": 2011
+   },
+   "UNIPORT 3030": {
+    "inicio": 2011,
+    "fim": null
+   },
+   "UNIPORT 4530": {
+    "inicio": 2016,
+    "fim": null
+   },
+   "UNIPORT 5030": {
+    "inicio": 2017,
+    "fim": null
+   }
+  },
+  "STARA": {
+   "GLADIADOR 2300": {
+    "inicio": 2009,
+    "fim": 2017
+   },
+   "GLADIADOR 3000": {
+    "inicio": 2009,
+    "fim": 2017
+   },
+   "IMPERADOR 3.0": {
+    "inicio": 2016,
+    "fim": null
+   }
+  },
+  "PLA": {
+   "H3000/ TAURUS": {
+    "inicio": 2013,
+    "fim": 2017
+   },
+   "HYDRA 200": {
+    "inicio": 2015,
+    "fim": 2026
+   },
+   "ORION 250": {
+    "inicio": 2014,
+    "fim": 2026
+   },
+   "PHOENIX 400": {
+    "inicio": 2016,
+    "fim": 2026
+   },
+   "TAURUS 320": {
+    "inicio": 2017,
+    "fim": 2026
+   },
+   "M3000": {
+    "inicio": 2005,
+    "fim": 2013
+   }
+  },
+  "JOHN DEERE": {
+   "4630 27M": {
+    "inicio": 2013,
+    "fim": 2019
+   },
+   "4630 CANA": {
+    "inicio": 2013,
+    "fim": 2019
+   },
+   "4730 30M": {
+    "inicio": 2012,
+    "fim": 2019
+   },
+   "4730 36M": {
+    "inicio": 2012,
+    "fim": 2019
+   },
+   "M4025": {
+    "inicio": 2019,
+    "fim": null
+   },
+   "M4030": {
+    "inicio": 2019,
+    "fim": null
+   },
+   "M4040": {
+    "inicio": 2019,
+    "fim": null
+   }
+  },
+  "MONTANA": {
+   "PARRUDA 3027": {
+    "inicio": 2001,
+    "fim": 2013
+   },
+   "MA 3027H": {
+    "inicio": 2004,
+    "fim": 2013
+   },
+   "MA 2627": {
+    "inicio": 2006,
+    "fim": 2013
+   }
+  },
+  "KUHN": {
+   "BOXER 2021H": {
+    "inicio": 2009,
+    "fim": 2014
+   },
+   "BOXER 2021M": {
+    "inicio": 2009,
+    "fim": 2014
+   },
+   "MA 2025H": {
+    "inicio": 2006,
+    "fim": 2014
+   },
+   "MA 2025M": {
+    "inicio": 2003,
+    "fim": 2014
+   }
+  },
+  "CASE": {
+   "PATRIOT 250": {
+    "inicio": 2013,
+    "fim": null
+   },
+   "PATRIOT 350": {
+    "inicio": 2006,
+    "fim": null
+   }
+  },
+  "MASSEY FERGUSON": {
+   "MF 8125": {
+    "inicio": 2018,
+    "fim": null
+   },
+   "MF 9030172": {
+    "inicio": 2011,
+    "fim": 2019
+   },
+   "MF 9330": {
+    "inicio": 2019,
+    "fim": null
+   },
+   "MF 9335": {
+    "inicio": 2019,
+    "fim": null
+   }
+  },
+  "METALFOR": {
+   "7040": {
+    "inicio": 2016,
+    "fim": null
+   },
+   "FUTURA 2200AB": {
+    "inicio": 2011,
+    "fim": 2024
+   },
+   "HIDRO": {
+    "inicio": 2000,
+    "fim": 2024
+   },
+   "MULTIPLE 2500AB": {
+    "inicio": 2000,
+    "fim": 2024
+   },
+   "MULTIPLE 3000AB": {
+    "inicio": 2010,
+    "fim": 2024
+   },
+   "MULTIPLE 3200AB": {
+    "inicio": 2013,
+    "fim": 2024
+   }
+  },
+  "NEW HOLLAND": {
+   "PS 3500 27MT": {
+    "inicio": 2011,
+    "fim": null
+   },
+   "PS 3500 30 MT CONTROLE DE ALTURA": {
+    "inicio": 2011,
+    "fim": null
+   },
+   "PS 3500 30 MT PIVOT": {
+    "inicio": 2011,
+    "fim": null
+   },
+   "SP2500 PREMIUM": {
+    "inicio": 2014,
+    "fim": 2018
+   }
+  },
+  "VALTRA": {
+   "BS 3020": {
+    "inicio": 2011,
+    "fim": 2019
+   }
+  }
  }
 }
