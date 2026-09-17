@@ -2,6 +2,9 @@
   "safra": "2026/2027",
   "produtividade": 52.4,
   "preco_medio": 119.52,
+  "taxa_poupanca_anual": 0.1425,
+  "preco_diesel": 6.45,
+  "salario_medio_operador": 2612.79,
   "itens": {
     "op_maquinas": {
       "rha": 192.79448521980595,
