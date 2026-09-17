@@ -1062,7 +1062,7 @@ function renderStep(){
         <div class="oc-valor"><label>${i===0?'Valor':''}</label>
           <div style="display:flex;gap:4px">
             <input type="text" id="oc-valor-${i}" style="flex:1;min-width:0" inputmode="decimal" value="${oc.unidade==='scha'?fmtBR(oc.valor):fmtReais(oc.valor)}" oninput="${oc.unidade==='scha'?'':'formatarCampoReais(this);'}atualizarPreviewOutroCusto(${i})">
-            <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 4px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
+            <select id="oc-unidade-${i}" style="flex:0 0 auto;width:auto;padding:11px 30px 11px 8px" onchange="mudarUnidadeOutroCusto(${i},this.value)">
               <option value="total"${oc.unidade!=='scha'?' selected':''}>R$</option>
               <option value="scha"${oc.unidade==='scha'?' selected':''}>sc/ha</option>
             </select>
