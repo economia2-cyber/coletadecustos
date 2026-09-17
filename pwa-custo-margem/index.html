@@ -944,11 +944,13 @@ function renderStep(){
             <select id="maq-marca-${mi}" onchange="mudarMarcaMaquina(${mi},this.value)">
               <option value="">${MARCAS_MODELOS?'Selecionar marca...':'Carregando marcas...'}</option>
               ${marcasDisponiveis(m.tipo).map(marca=>`<option value="${marca}"${m.marca===marca?' selected':''}>${marca}</option>`).join('')}
+              <option value="Outra"${m.marca==='Outra'?' selected':''}>Outra (não listada)</option>
             </select></div>
           <div class="oc-valor" style="flex:1"><label>Modelo</label>
             <select id="maq-modelo-${mi}" onchange="mudarModeloMaquina(${mi},this.value)">
               <option value="">${MARCAS_MODELOS?'Selecionar modelo...':'Carregando modelos...'}</option>
               ${modelosDisponiveis(m.tipo,m.marca).map(modelo=>`<option value="${modelo}"${m.modelo===modelo?' selected':''}>${modelo}</option>`).join('')}
+              <option value="Outro"${m.modelo==='Outro'?' selected':''}>Outro (não listado)</option>
             </select></div>
         </div>
         <div class="fg"><label>Valor do bem (R$) *</label>
@@ -970,11 +972,13 @@ function renderStep(){
             <select id="uso-fase-${mi}-${ui}" onchange="preencherFaseTexto(${mi},${ui},this.value)">
               <option value="">Selecionar fase...</option>
               ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${u.fase===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
+              <option value="Outra fase"${u.fase==='Outra fase'?' selected':''}>Outra fase</option>
             </select></div>
           <div class="fg"><label>Implemento</label>
             <select id="uso-implemento-${mi}-${ui}" onchange="preencherImplementoTexto(${mi},${ui},this.value)">
               <option value="">Selecionar implemento...</option>
               ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${u.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
+              <option value="Outro implemento"${u.implemento==='Outro implemento'?' selected':''}>Outro implemento</option>
             </select></div>
           <div class="fg oc-row">
             <div class="oc-valor" style="flex:1"><label>Largura de trabalho (m) *</label>
