@@ -517,7 +517,6 @@ let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
 let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
 
 // ─── OPERAÇÃO DE MÁQUINAS (fases → veículos) ───────────────────────────────────
-const OUTRO_MARCADOR = '__outro__'; // valor de opção de <select> que revela um campo de texto livre
 const FASES_MAQUINAS_PADRAO = ['Preparo do Solo', 'Plantio', 'Tratos Culturais (Pulverizações)', 'Colheita'];
 const IMPLEMENTOS_SUGERIDOS = ['Grade Niveladora','Grade Aradora','Subsolador','Plantadeira/Semeadora',
   'Pulverizador Autopropelido','Pulverizador de Arrasto','Distribuidor de Calcário/Fertilizante',
@@ -897,11 +896,11 @@ function renderStep(){
       <div class="card" style="border-color:var(--gold-pale);margin-bottom:10px">
         <div class="fg oc-row" style="margin-bottom:6px">
           <div class="oc-desc" style="flex:1"><label>Fase da produção</label>
-            <select id="fase-sel-${fi}" onchange="mudarFaseSelect(${fi},this.value)">
+            <select id="fase-sel-${fi}" onchange="preencherFaseTexto(${fi},this.value)">
+              <option value="">Selecionar fase padrão...</option>
               ${FASES_MAQUINAS_PADRAO.map(nomeFase=>`<option value="${nomeFase}"${fase.nome===nomeFase?' selected':''}>${nomeFase}</option>`).join('')}
-              <option value="${OUTRO_MARCADOR}"${!FASES_MAQUINAS_PADRAO.includes(fase.nome)?' selected':''}>Outra fase (digitar)</option>
             </select>
-            ${!FASES_MAQUINAS_PADRAO.includes(fase.nome) ? `<input type="text" id="fase-nome-${fi}" placeholder="Nome da fase" value="${fase.nome||''}" style="margin-top:6px">` : ''}</div>
+            <input type="text" id="fase-nome-${fi}" placeholder="Nome da fase" value="${fase.nome||''}" style="margin-top:6px"></div>
           ${fasesMaquinas.length>1 ? `<button type="button" class="bsecondary oc-remove" onclick="removerFaseMaquina(${fi})">Remover fase</button>` : ''}
         </div>
         ${fase.veiculos.map((v,vi)=>`
@@ -915,11 +914,11 @@ function renderStep(){
           <div class="fg"><label>Veículo/Modelo</label>
             <input type="text" id="veic-nome-${fi}-${vi}" placeholder="Ex: Trator Valtra BH180" value="${v.nome||''}"></div>
           <div class="fg"><label>Implemento</label>
-            <select id="veic-implemento-sel-${fi}-${vi}" onchange="mudarImplementoSelect(${fi},${vi},this.value)">
+            <select id="veic-implemento-sel-${fi}-${vi}" onchange="preencherImplementoTexto(${fi},${vi},this.value)">
+              <option value="">Selecionar implemento sugerido...</option>
               ${IMPLEMENTOS_SUGERIDOS.map(nomeImp=>`<option value="${nomeImp}"${v.implemento===nomeImp?' selected':''}>${nomeImp}</option>`).join('')}
-              <option value="${OUTRO_MARCADOR}"${!IMPLEMENTOS_SUGERIDOS.includes(v.implemento)?' selected':''}>Outro (digitar)</option>
             </select>
-            ${!IMPLEMENTOS_SUGERIDOS.includes(v.implemento) ? `<input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Nome do implemento" value="${v.implemento||''}" style="margin-top:6px">` : ''}</div>
+            <input type="text" id="veic-implemento-${fi}-${vi}" placeholder="Nome do implemento" value="${v.implemento||''}" style="margin-top:6px"></div>
           <div class="fhint" style="margin-bottom:8px">Com os dados técnicos abaixo, o app já prevê o custo de operação
             deste veículo (diesel, operador, manutenção) e sua depreciação, seguro e remuneração do capital fixo, com a
             mesma fórmula da Metodologia da Aprosoja/MS. Os campos com <b>*</b> são obrigatórios em conjunto: se deixar
@@ -1061,15 +1060,12 @@ function lerCamposEtapa(){
   if(step.tipo==='revisao') return true;
   if(step.tipo==='maquinas'){
     fasesMaquinas.forEach((fase,fi)=>{
-      const fSelEl = document.getElementById('fase-sel-'+fi);
       const fTxtEl = document.getElementById('fase-nome-'+fi);
       if(fTxtEl) fase.nome = fTxtEl.value.trim();
-      else if(fSelEl) fase.nome = fSelEl.value;
       fase.veiculos.forEach((v,vi)=>{
         const nEl = document.getElementById(`veic-nome-${fi}-${vi}`);
         const tEl = document.getElementById(`veic-tipo-${fi}-${vi}`);
         const pEl = document.getElementById(`veic-potencia-${fi}-${vi}`);
-        const iSelEl = document.getElementById(`veic-implemento-sel-${fi}-${vi}`);
         const iTxtEl = document.getElementById(`veic-implemento-${fi}-${vi}`);
         const psEl = document.getElementById(`veic-passadas-${fi}-${vi}`);
         const vbEl = document.getElementById(`veic-valorbem-${fi}-${vi}`);
@@ -1079,7 +1075,6 @@ function lerCamposEtapa(){
         if(tEl) v.tipo = tEl.value;
         if(pEl) v.potencia = parseFloat(pEl.value)||0;
         if(iTxtEl) v.implemento = iTxtEl.value.trim();
-        else if(iSelEl) v.implemento = iSelEl.value;
         if(psEl) v.passadas = parseFloat(psEl.value)||0;
         if(vbEl) v.valorBem = parseFloat(vbEl.value)||0;
         if(laEl) v.largura = parseFloat(laEl.value)||0;
@@ -1213,14 +1208,14 @@ function mudarTipoMaquina(fi,vi,tipoNome){
   if(cat){ v.vidaUtilAnos=cat.anos; v.vidaUtilHoras=cat.horas; v.residual=cat.residual; }
   renderStep();
 }
-function mudarFaseSelect(fi,valor){
+function preencherFaseTexto(fi,valor){
   lerCamposEtapa();
-  fasesMaquinas[fi].nome = valor===OUTRO_MARCADOR ? '' : valor;
+  if(valor) fasesMaquinas[fi].nome = valor;
   renderStep();
 }
-function mudarImplementoSelect(fi,vi,valor){
+function preencherImplementoTexto(fi,vi,valor){
   lerCamposEtapa();
-  fasesMaquinas[fi].veiculos[vi].implemento = valor===OUTRO_MARCADOR ? '' : valor;
+  if(valor) fasesMaquinas[fi].veiculos[vi].implemento = valor;
   renderStep();
 }
 function adicionarBenfeitoria(){
