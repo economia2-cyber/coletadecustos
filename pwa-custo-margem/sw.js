@@ -1,5 +1,14 @@
-const CACHE = 'aprosoja-custo-v1';
+// Sobe a versão sempre que quiser forçar todo cliente instalado a descartar
+// o cache antigo por inteiro (não só os arquivos que mudaram) — o activate
+// abaixo já apaga qualquer cache com nome diferente deste.
+const CACHE = 'aprosoja-custo-v2';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json', './maquinas_marcas_modelos.json'];
+
+// Arquivos de dados/código que mudam com frequência (a cada ajuste do app ou
+// a cada safra) — precisam ser buscados na rede primeiro, com o cache só
+// como fallback offline. Ícones/logo/manifest praticamente não mudam, esses
+// continuam cache-first (mais rápido, sem gasto de dados à toa).
+const ARQUIVOS_NETWORK_FIRST = ['index.html', 'reference.json', 'maquinas_marcas_modelos.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -18,9 +27,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('api.github.com')) return;
 
-  // Página: network-first, para atualizações do app chegarem sem precisar
-  // desinstalar/reinstalar.
-  if (e.request.mode === 'navigate' || e.request.url.includes('index.html')) {
+  const ehNetworkFirst = e.request.mode === 'navigate' ||
+    ARQUIVOS_NETWORK_FIRST.some(nome => e.request.url.includes(nome));
+
+  if (ehNetworkFirst) {
     e.respondWith(
       fetch(e.request, { cache: 'no-cache' }).then(res => {
         const clone = res.clone();
@@ -33,7 +43,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Demais recursos (ícones, logo, manifest, reference.json): cache-first
+  // Demais recursos (ícones, logo, manifest): cache-first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       if (res.ok && e.request.method === 'GET') {
