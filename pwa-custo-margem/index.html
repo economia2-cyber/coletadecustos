@@ -496,7 +496,7 @@ const STEPS = [
   {id:'lavoura', nome:'Dados da Lavoura', tipo:'lavoura'},
   {id:'maquinas', nome:'Operação de Máquinas', tipo:'maquinas'},
   {id:'benfeitorias', nome:'Benfeitorias e Instalações', tipo:'benfeitorias'},
-  {id:'maq', nome:'Mão de Obra e Financeiro', campos:['mao_obra','juros'], modo:'total'},
+  {id:'maq', nome:'Mão de Obra', campos:['mao_obra'], modo:'total'},
   {id:'insumos', nome:'Insumos da Lavoura', campos: GRUPOS['Insumos'], modo:'total'},
   {id:'outras', nome:'Outras Despesas', campos: GRUPOS['Outras Despesas'], modo:'total'},
   {id:'outros_custos', nome:'Outros Custos', tipo:'outros_custos'},
@@ -752,6 +752,24 @@ function outroCustoTotalReais(oc, area, preco){
   if(oc.unidade==='scha') return (oc.valor||0)*preco*area;
   return oc.valor||0;
 }
+
+// Juros de Financiamento (R$), previsto para a safra: o produtor não sabe de
+// antemão quanto vai pagar de juros antes de contratar o custeio, então em
+// vez de perguntar um total, o app prevê a partir do próprio custo variável
+// informado. A taxa usada é a mesma proporção "juros / demais custo variável"
+// da média Aprosoja/MS (safra vigente) — reflete, na prática, quanto do
+// custeio costuma ser financiado e por quanto tempo, sem exigir do produtor
+// datas de desembolso ou taxa de crédito contratada.
+function jurosFinanciamentoPrevisto(area){
+  if(!REF || !REF.itens || !REF.itens.juros || !REF.agregados || !REF.agregados.custo_variavel || !area) return 0;
+  const refJurosRha = REF.itens.juros.rha||0;
+  const refVariavelSemJurosRha = (REF.agregados.custo_variavel.rha||0) - refJurosRha;
+  if(!refVariavelSemJurosRha) return 0;
+  const taxaImplicita = refJurosRha/refVariavelSemJurosRha;
+  const totalSemJuros = CAMPOS_CUSTO_VARIAVEL.filter(k=>k!=='juros').reduce((s,k)=>s+(valores[k]||0),0)
+    + outrosCustos.filter(oc=>oc.valor>0).reduce((s,oc)=>s+outroCustoTotalReais(oc,area,lavoura.preco||0),0);
+  return totalSemJuros*taxaImplicita;
+}
 function calcular(valores, area, produtividade, preco, ref, outros){
   outros = outros || [];
   const rha = {};
@@ -900,6 +918,7 @@ function renderStep(){
         <div class="fhint">Pré-preenchido com o preço de referência Aprosoja/MS (${REF?brl(REF.preco_medio):'-'}/sc, safra ${REF?REF.safra:''}). Ajuste para o seu preço real.</div></div>
     `;
   }else if(step.tipo==='revisao'){
+    valores.juros = jurosFinanciamentoPrevisto(lavoura.area||0);
     let totalGeral = 0;
     CAMPOS_TOTAL.forEach(k=>totalGeral += (valores[k]||0));
     const outrosValidos = outrosCustos.filter(oc=>oc.valor>0);
@@ -918,6 +937,9 @@ function renderStep(){
       <div class="resumo-row"><span>Total custo fixo + oportunidade previsto</span><b>${brl(perHaTotal)}${lavoura.area?` <span style="font-weight:400;color:var(--tl)">(${brl(perHaTotal/lavoura.area)}/ha)</span>`:''}</b></div>
       ${outrosValidos.length ? `<div class="resumo-row"><span>Outros custos (${outrosValidos.length} item${outrosValidos.length>1?'s':''})</span><b>${brl(outrosTotal)}${lavoura.area?` <span style="font-weight:400;color:var(--tl)">(${brl(outrosTotal/lavoura.area)}/ha)</span>`:''}</b></div>` : ''}
       <div class="fhint" style="margin-top:10px">Os valores acima são o <b>total para toda a área</b> (${n1(lavoura.area)} ha), com o equivalente em R$/ha entre parênteses. Toque em "Calcular e Salvar" para ver o relatório completo, com a composição do seu custo, a comparação com a média Aprosoja/MS, o ponto de equilíbrio e a margem.</div>
+      <div class="fhint">Já incluso no total variável: <b>Juros de Financiamento</b> previsto em ${brl(valores.juros)}, calculado
+        automaticamente a partir do seu custo variável e da mesma proporção juros/custeio da média Aprosoja/MS. Você não
+        precisa informar esse valor.</div>
     `;
   }else if(step.tipo==='maquinas'){
     const totalMaquinasCalc = totalOperacaoMaquinas(maquinas, lavoura.area||0);
@@ -1766,6 +1788,7 @@ function baixarPdfRelatorio(){
 
 let ultimoResultado=null, ultimaMeta=null;
 async function calcularESalvar(){
+  valores.juros = jurosFinanciamentoPrevisto(lavoura.area||0);
   const r = calcular(valores, lavoura.area, lavoura.produtividade, lavoura.preco, REF, outrosCustos);
   const meta = {produtor:lavoura.produtor, municipio:lavoura.municipio, safra:REF.safra, data:new Date().toISOString().split('T')[0]};
   ultimoResultado=r; ultimaMeta=meta;
