@@ -235,6 +235,33 @@
     .duvidas{margin-top:10px;padding:10px 12px;text-align:center}
     .duvidas a{color:var(--gd);font-size:.72rem;font-weight:700;text-decoration:underline}
 
+    /* ── Consentimento LGPD ── */
+    .consent-row{display:flex;align-items:flex-start;gap:9px;background:var(--cream2);
+      border:1.5px solid var(--bd);border-radius:9px;padding:11px 12px;margin-top:14px}
+    .consent-row.err-hl{border-color:var(--dn);background:rgba(178,59,46,.06)}
+    .consent-row input[type=checkbox]{width:19px;height:19px;flex-shrink:0;margin-top:1px;accent-color:var(--gd)}
+    .consent-row label{margin:0;font-weight:400;font-size:.78rem;color:var(--tm);line-height:1.4}
+    .consent-row a{color:var(--gd);font-weight:700;text-decoration:underline;cursor:pointer}
+
+    /* ── Modal (Política de Privacidade) ── */
+    .modal-back{position:fixed;inset:0;background:rgba(11,61,46,.55);z-index:500;
+      display:none;align-items:flex-end;justify-content:center}
+    .modal-back.show{display:flex}
+    .modal-box{background:var(--cream);width:100%;max-width:680px;max-height:88vh;
+      border-radius:16px 16px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.25);
+      display:flex;flex-direction:column;overflow:hidden}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;background:var(--gd);border-bottom:3px solid var(--gold);flex-shrink:0}
+    .modal-head h2{font-size:.9rem;font-weight:800;color:#fff;letter-spacing:.4px}
+    .modal-close{background:transparent;border:none;color:var(--gold-pale);font-size:1.3rem;
+      line-height:1;cursor:pointer;padding:4px 8px}
+    .modal-body{padding:16px;overflow-y:auto}
+    .modal-body h3{font-size:.8rem;font-weight:800;color:var(--gd);margin:14px 0 5px}
+    .modal-body h3:first-child{margin-top:0}
+    .modal-body p,.modal-body li{font-size:.78rem;line-height:1.6;color:var(--tm);text-align:justify}
+    .modal-body ul{padding-left:18px;margin:4px 0}
+    .modal-body .pdate{font-size:.66rem;color:var(--tx);margin-bottom:10px}
+
     hr{border:none;border-top:1px solid var(--bdl);margin:14px 0}
     ::-webkit-scrollbar{width:3px}
     ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
@@ -285,6 +312,23 @@
       #print-closing img{height:46px;object-fit:contain}
     }
     #print-footer,#print-closing{display:none}
+
+    /* ── Geração de PDF para envio por WhatsApp (fora do fluxo window.print()) ── */
+    /* Replica as mesmas trocas de visibilidade do @media print acima, só que via
+       classe: a biblioteca usada para gerar o arquivo compartilhável (html2canvas)
+       captura a página como ela está renderizada na tela, sem aplicar @media print. */
+    body.forcar-pdf{padding-bottom:0;background:#fff}
+    body.forcar-pdf .page{max-width:none;margin:0}
+    body.forcar-pdf .header,body.forcar-pdf .bnav,body.forcar-pdf .toast,
+    body.forcar-pdf #splash,body.forcar-pdf .no-print,body.forcar-pdf .footnote{display:none!important}
+    body.forcar-pdf #wizard{display:none!important}
+    body.forcar-pdf #report-view{display:block!important}
+    body.forcar-pdf .pdf-only{display:block!important}
+    body.forcar-pdf #print-header{display:block!important;margin-bottom:18px}
+    body.forcar-pdf #print-footer{display:block!important;margin-top:16px;padding-top:10px;
+      border-top:1px solid var(--bdl);font-size:.66rem;color:var(--tx);text-align:center}
+    body.forcar-pdf #print-closing{display:flex!important;justify-content:center;align-items:center;
+      background:var(--cream);padding:26px 0;margin-top:18px}
   </style>
 </head>
 <body>
@@ -323,7 +367,8 @@
   <div id="report-view" style="display:none"></div>
 
   <div class="footnote">Os dados informados alimentam a base de custos regionais da Aprosoja/MS,
-    usada apenas de forma agregada. Nenhuma informação individual é divulgada.</div>
+    usada apenas de forma agregada. Nenhuma informação individual é divulgada. Tratamento de dados
+    conforme a <a onclick="abrirPrivacidade()" style="color:var(--gd);font-weight:700;text-decoration:underline;cursor:pointer">Política de Privacidade</a>.</div>
   <div class="duvidas no-print"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
@@ -360,6 +405,7 @@
     sincroniza quando você tiver conexão.
   </p>
   <p style="font-size:.7rem;color:var(--tx);margin-top:10px">Safra de referência: <b id="about-safra" style="color:var(--gd)"></b></p>
+  <button class="bghost" style="width:100%;text-align:center;margin-top:6px" onclick="abrirPrivacidade()">Política de Privacidade</button>
   <div class="duvidas"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
 </div>
 
@@ -388,6 +434,61 @@
     <button class="nbtn" id="nav-share" onclick="showPage('share')">Compartilhar</button>
   </div>
 </nav>
+
+<!-- ════════════════ POLÍTICA DE PRIVACIDADE (modal) ════════════════ -->
+<div id="modal-privacidade" class="modal-back" onclick="if(event.target===this) fecharPrivacidade()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>POLÍTICA DE PRIVACIDADE</h2>
+      <button type="button" class="modal-close" onclick="fecharPrivacidade()" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="pdate">Última atualização: 22/09/2026 · Aprosoja/MS</div>
+
+      <h3>1. Quem trata os seus dados</h3>
+      <p>A <b>Associação Sul-Mato-Grossense de Produtores de Soja e Milho (Aprosoja/MS)</b> é a controladora
+        dos dados pessoais coletados por este aplicativo, nos termos da Lei nº 13.709/2018 (Lei Geral de
+        Proteção de Dados — LGPD).</p>
+
+      <h3>2. Quais dados coletamos</h3>
+      <ul>
+        <li>Identificação (opcional): nome do produtor/técnico.</li>
+        <li>Localização da lavoura: município e, se você permitir o acesso do navegador/celular,
+          a latitude/longitude aproximada do talhão.</li>
+        <li>Dados técnicos e financeiros da produção: área, produtividade, preço de venda, custos com
+          mão de obra, insumos, máquinas, benfeitorias e demais despesas que você informar no formulário.</li>
+      </ul>
+
+      <h3>3. Para que usamos esses dados</h3>
+      <p>Os dados são usados para calcular a previsão de custo e margem da sua lavoura e para compor,
+        de forma <b>agregada e estatística</b>, a base de custos regionais de produção da Aprosoja/MS —
+        usada para estudos e comparativos do setor. Nenhuma informação individual identificada é divulgada
+        publicamente.</p>
+
+      <h3>4. Base legal</h3>
+      <p>O tratamento é feito com base no seu <b>consentimento</b> (art. 7º, I, da LGPD), que você pode
+        revogar a qualquer momento pelos canais de contato abaixo, e no legítimo interesse da Aprosoja/MS
+        em produzir estatísticas agregadas e anônimas do setor.</p>
+
+      <h3>5. Compartilhamento</h3>
+      <p>Os dados ficam armazenados em repositório de acesso restrito da Aprosoja/MS e não são vendidos
+        nem compartilhados com terceiros para fins comerciais.</p>
+
+      <h3>6. Por quanto tempo guardamos</h3>
+      <p>Os dados são mantidos pelo tempo necessário para as finalidades acima ou até que você solicite
+        a exclusão, o que ocorrer primeiro.</p>
+
+      <h3>7. Seus direitos</h3>
+      <p>Nos termos do art. 18 da LGPD, você pode solicitar, a qualquer momento: confirmação do
+        tratamento, acesso, correção, anonimização, exclusão dos seus dados, portabilidade e revogação
+        do consentimento.</p>
+
+      <h3>8. Contato</h3>
+      <p>Para exercer seus direitos ou tirar dúvidas sobre o tratamento dos seus dados, fale com a
+        Aprosoja/MS pelo WhatsApp <a href="https://wa.me/5567981134433" target="_blank" rel="noopener">(67) 98113-4433</a>.</p>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast"></div>
 
@@ -535,6 +636,11 @@ CAMPOS_TOTAL.forEach(k=>valores[k]=0);
 CAMPOS_POR_HA.forEach(k=>valores[k]=0);
 let lavoura = {produtor:'',municipio:'',area:0,produtividade:0,preco:0};
 let outrosCustos = [];           // custos avulsos: [{descricao, valor}]
+// Campos obrigatórios (modo 'total') que o produtor já digitou algo, mesmo que
+// "0" — distingue "ainda não respondido" (bloqueia) de "respondido como zero"
+// (válido: nem todo produtor tem gasto em todo item), já que valores[k] sozinho
+// não diferencia as duas situações (ambas ficam em 0).
+let camposConfirmados = new Set();
 
 // ─── OPERAÇÃO DE MÁQUINAS (máquina → usos) ──────────────────────────────────────
 // Base é a máquina (cadastrada uma vez, com seus próprios dados técnicos e
@@ -1032,6 +1138,12 @@ function renderStep(){
       <div class="fhint">Já incluso no total variável: <b>Juros de Financiamento</b> previsto em ${brl(valores.juros)}, calculado
         automaticamente a partir do seu custo variável e da mesma proporção juros/custeio da média Aprosoja/MS. Você não
         precisa informar esse valor.</div>
+      <div class="consent-row" id="consent-row">
+        <input type="checkbox" id="f-consentimento" ${lavoura.consentimentoLGPD?'checked':''}>
+        <label for="f-consentimento">Li e concordo com o tratamento dos meus dados pessoais pela Aprosoja/MS
+          conforme a <a onclick="abrirPrivacidade()">Política de Privacidade</a>, incluindo o uso agregado e
+          anônimo dessas informações na base de custos regionais.</label>
+      </div>
     `;
   }else if(step.tipo==='maquinas'){
     const totalMaquinasCalc = totalOperacaoMaquinas(maquinas, lavoura.area||0);
@@ -1178,7 +1290,9 @@ function renderStep(){
     const camposEditaveis = step.campos.filter(k=>!CAMPOS_AUTOCALCULADOS.includes(k));
     let hintTopo;
     if(modo==='total'){
-      hintTopo = `Informe o valor <b>total previsto para a safra</b> (R$) em cada item.`;
+      hintTopo = `Informe o valor <b>total previsto para a safra</b> (R$) em cada item. Todos os campos desta
+        etapa (<b>*</b>) são obrigatórios — digite <b>0</b> se você não tiver esse gasto; deixá-los em
+        branco costuma ser um esquecimento e distorce a lucratividade calculada.`;
     }else if(camposEditaveis.length===0){
       hintTopo = `Preenchido automaticamente por cálculo, com base nos dados de máquinas e benfeitorias informados nas etapas anteriores. Nada para digitar aqui.`;
     }else if(camposEditaveis.length<step.campos.length){
@@ -1207,9 +1321,14 @@ function renderStep(){
         const refRha = REF.itens[k].rha;
         const val = valores[k];
         const refHint = modo==='total' ? brl(refRha*(lavoura.area||0)) : brl(refRha)+'/ha';
+        // Em campos "total" obrigatórios, um valor 0 já respondido (camposConfirmados)
+        // precisa reaparecer como "0,00" ao voltar pra etapa — fmtReais(0) por si só
+        // devolve '', o que apagaria a resposta do produtor da tela (mas não do estado).
+        const valExibido = modo==='total' && !val && camposConfirmados.has(k) ? '0,00'
+          : (val?fmtReais(val):(modo==='perha'?fmtReais(refRha):''));
         return `
-        <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':''}</label>
-          <input type="text" id="c-${k}" inputmode="decimal" value="${val?fmtReais(val):(modo==='perha'?fmtReais(refRha):'')}" oninput="formatarCampoReais(this)">
+        <div class="fg"><label>${LABELS[k]}${modo==='perha'?' (R$/ha)':' *'}</label>
+          <input type="text" id="c-${k}" inputmode="decimal" value="${valExibido}" oninput="formatarCampoReais(this)">
           <div class="fhint">Média Aprosoja/MS: ${refHint}</div>
         </div>`;
       }).join('');
@@ -1226,7 +1345,11 @@ function lerCamposEtapa(){
     lavoura.preco = parseBR(document.getElementById('f-preco').value);
     return true;
   }
-  if(step.tipo==='revisao') return true;
+  if(step.tipo==='revisao'){
+    const consentEl = document.getElementById('f-consentimento');
+    if(consentEl) lavoura.consentimentoLGPD = consentEl.checked;
+    return true;
+  }
   if(step.tipo==='maquinas'){
     maquinas.forEach((m,mi)=>{
       const tEl = document.getElementById('maq-tipo-'+mi);
@@ -1286,6 +1409,9 @@ function lerCamposEtapa(){
   step.campos.forEach(k=>{
     const el = document.getElementById('c-'+k);
     valores[k] = el ? parseBR(el.value) : (valores[k]||0);
+    if(el && step.modo==='total'){
+      if(el.value.trim()!=='') camposConfirmados.add(k); else camposConfirmados.delete(k);
+    }
   });
   return true;
 }
@@ -1322,6 +1448,23 @@ function validarEtapa(){
       if(!(b.valor>0)) return; // sem Valor do bem, essa benfeitoria não entra no cálculo, nada a exigir
       if(!(b.ocupacao>0)) erros.push(`Benfeitoria ${bi+1}: informe a <b>% de Ocupação</b> (ou deixe 100%).`);
     });
+  }
+  if(step.modo==='total'){
+    // Itens sem substituto pela média Aprosoja/MS (ao contrário dos campos "por ha", que já vêm
+    // preenchidos com a referência): deixados em branco, distorcem a lucratividade calculada — por
+    // isso é obrigatório responder, com destaque para Mão de Obra, Sementes e Fertilizante. "0" é
+    // uma resposta válida (nem todo produtor tem gasto em todo item); só o campo em branco bloqueia.
+    step.campos.forEach(k=>{
+      if(!camposConfirmados.has(k)) erros.push(`<b>${LABELS[k]}</b> é obrigatório — informe o valor total previsto para a safra (pode ser 0).`);
+    });
+  }
+  if(step.tipo==='revisao'){
+    const consentEl = document.getElementById('f-consentimento');
+    document.getElementById('consent-row').classList.remove('err-hl');
+    if(!(consentEl && consentEl.checked)){
+      erros.push('É preciso concordar com a <b>Política de Privacidade</b> para enviar o formulário.');
+      document.getElementById('consent-row').classList.add('err-hl');
+    }
   }
   if(erros.length){
     document.getElementById('errs').innerHTML = erros.map(e=>`<div class="err">${e}</div>`).join('');
@@ -1872,6 +2015,7 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
     </div>
 
     <button class="bprimary no-print" onclick="editarCalculo()">Corrigir alguma resposta</button>
+    <button class="bprimary no-print" id="btn-wpp-pdf" style="width:100%;margin-top:8px;background:#25D366;color:#fff;box-shadow:none" onclick="enviarPdfWhatsApp()">Enviar PDF por WhatsApp</button>
     <button class="bsecondary no-print" style="width:100%;margin-top:8px" onclick="baixarPdfRelatorio()">Baixar PDF do Relatório</button>
     <button class="bghost no-print" style="width:100%;margin-top:2px" onclick="compartilharResultado()">Compartilhar resumo em texto</button>
     <button class="bghost no-print" style="width:100%;margin-top:2px" onclick="novoCalculo()">Começar um cálculo novo do zero</button>
@@ -1884,6 +2028,81 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
 function baixarPdfRelatorio(){
   showToast('Na caixa que abrir, escolha "Salvar como PDF" para baixar o relatório.');
   setTimeout(()=>window.print(), 400);
+}
+
+// Biblioteca de geração de PDF (html2pdf.js) carregada sob demanda, só quando o
+// produtor realmente pede pra enviar por WhatsApp — evita baixar ~200KB extras
+// (e não funciona offline) em quem nunca usa esse botão.
+const HTML2PDF_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js';
+const HTML2PDF_SRI = 'sha512-+9GoO5OUX2MmPRHUH5dnOY+KGReMLcxywEvQxvAI0y5JxXh/lkz99dKj4xdYfODP3dMFsoZRz4CF/vHcaqa2Ag==';
+let _html2pdfPromise = null;
+function carregarHtml2Pdf(){
+  if(typeof html2pdf!=='undefined') return Promise.resolve(true);
+  if(_html2pdfPromise) return _html2pdfPromise;
+  _html2pdfPromise = new Promise(resolve=>{
+    const s = document.createElement('script');
+    s.src = HTML2PDF_SRC; s.integrity = HTML2PDF_SRI; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+    s.onload = ()=>resolve(true);
+    s.onerror = ()=>{ _html2pdfPromise=null; resolve(false); };
+    document.head.appendChild(s);
+  });
+  return _html2pdfPromise;
+}
+
+// Gera o mesmo relatório técnico do "Baixar PDF" (as seções .pdf-only, normalmente
+// só visíveis durante window.print()) como um arquivo PDF de verdade e abre o
+// compartilhamento nativo do aparelho, de onde o produtor escolhe WhatsApp — ao
+// contrário do window.print(), que não produz um arquivo que dê pra anexar direto.
+async function enviarPdfWhatsApp(){
+  if(!ultimoResultado || !ultimaMeta) return;
+  const btn = document.getElementById('btn-wpp-pdf');
+  const original = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Gerando PDF...';
+  try{
+    const ok = await carregarHtml2Pdf();
+    if(!ok || typeof html2pdf==='undefined'){
+      showToast('Sem conexão para gerar o PDF agora. Tente novamente com internet, ou use "Baixar PDF do Relatório".', 1);
+      return;
+    }
+    document.body.classList.add('forcar-pdf');
+    const nomeArq = `Relatorio_Custo_${(ultimaMeta.municipio||'lavoura').replace(/\s+/g,'_')}_${ultimaMeta.data}.pdf`;
+    let blob;
+    try{
+      blob = await html2pdf().set({
+        margin: 10,
+        filename: nomeArq,
+        image: {type:'jpeg', quality:0.95},
+        html2canvas: {scale:2, useCORS:true, backgroundColor:'#ffffff'},
+        jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
+        pagebreak: {mode:['css','legacy']},
+      }).from(document.getElementById('report-view')).outputPdf('blob');
+    }finally{
+      document.body.classList.remove('forcar-pdf');
+    }
+    const arquivo = new File([blob], nomeArq, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[arquivo]})){
+      await navigator.share({
+        files:[arquivo], title:'Relatório de Custo e Margem',
+        text:`Previsão de custo da lavoura em ${ultimaMeta.municipio} (Safra ${ultimaMeta.safra}), Calculadora de Custo e Margem Aprosoja/MS.`,
+      });
+    }else{
+      // Sem suporte a compartilhar arquivo (comum em desktop): baixa o PDF e abre
+      // o WhatsApp à parte, já que não é possível anexar um arquivo via link wa.me.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = nomeArq;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 30000);
+      showToast('PDF baixado. Abra o WhatsApp e anexe o arquivo baixado na conversa.');
+      window.open('https://wa.me/?text='+encodeURIComponent('Segue o relatório de custo da minha lavoura (Calculadora de Custo e Margem, Aprosoja/MS).'), '_blank');
+    }
+  }catch(e){
+    if(!(e && e.name==='AbortError')){ // AbortError = produtor cancelou o compartilhamento, nada a fazer
+      console.error(e);
+      showToast('Não foi possível gerar o PDF agora. Tente novamente.', 1);
+    }
+  }finally{
+    btn.disabled = false; btn.innerHTML = original;
+  }
 }
 
 let ultimoResultado=null, ultimaMeta=null;
@@ -1911,6 +2130,7 @@ async function calcularESalvar(){
   const entry = {...lavoura, ...JSON.parse(JSON.stringify(valores)), outros_custos:JSON.parse(JSON.stringify(outrosCustos)),
     maquinas_detalhe:JSON.parse(JSON.stringify(maquinas)), benfeitorias_detalhe:JSON.parse(JSON.stringify(benfeitorias)),
     latitude: geo?geo.latitude:null, longitude: geo?geo.longitude:null,
+    consentimentoLGPD: !!lavoura.consentimentoLGPD, consentimento_data: lavoura.consentimentoLGPD?new Date().toISOString():null,
     resultado:r, safra:REF.safra, cultura:'Soja', status:'pending', created_at:new Date().toISOString()};
   await dbAdd(entry);
   atualizarBadge();
@@ -1933,6 +2153,7 @@ function novoCalculo(){
   outrosCustos=[];
   maquinas=[];
   benfeitorias=[];
+  camposConfirmados=new Set();
   stepIdx=0;
   document.getElementById('report-view').style.display='none';
   document.getElementById('report-view').innerHTML='';
@@ -2117,6 +2338,10 @@ function showPage(p){
     if(qr && !qr.src) qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(APP_LINK);
   }
 }
+
+// ─── PRIVACIDADE (LGPD) ─────────────────────────────────────────────────────────
+function abrirPrivacidade(){ document.getElementById('modal-privacidade').classList.add('show'); }
+function fecharPrivacidade(){ document.getElementById('modal-privacidade').classList.remove('show'); }
 
 // ─── COMPARTILHAR O APP ─────────────────────────────────────────────────────────
 const APP_LINK='https://economia2-cyber.github.io/coletadecustos/pwa-custo-margem/';
