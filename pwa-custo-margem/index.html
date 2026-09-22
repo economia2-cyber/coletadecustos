@@ -1238,8 +1238,9 @@ function renderStep(){
     c.innerHTML = `
       <div class="stitle">Outros Custos</div>
       <div class="fhint" style="margin-bottom:10px">Adicione aqui custos previstos da sua lavoura que não se encaixam nas
-        categorias anteriores. Campo opcional. Se o custo for cotado em sacas por hectare (comum em arrendamento),
-        escolha "sc/ha": o app converte para R$ sozinho, usando o preço de venda informado.</div>
+        categorias anteriores. Etapa opcional — mas todo item com valor precisa de uma <b>Descrição</b>, pra ficar claro
+        na planilha o que é esse custo. Se o custo for cotado em sacas por hectare (comum em arrendamento), escolha
+        "sc/ha": o app converte para R$ sozinho, usando o preço de venda informado.</div>
       ` + outrosCustos.map((oc,i)=>`
       <div class="fg oc-row">
         <div class="oc-desc"><label>${i===0?'Descrição':''}</label>
@@ -1447,6 +1448,13 @@ function validarEtapa(){
     benfeitorias.forEach((b,bi)=>{
       if(!(b.valor>0)) return; // sem Valor do bem, essa benfeitoria não entra no cálculo, nada a exigir
       if(!(b.ocupacao>0)) erros.push(`Benfeitoria ${bi+1}: informe a <b>% de Ocupação</b> (ou deixe 100%).`);
+    });
+  }
+  if(step.tipo==='outros_custos'){
+    outrosCustos.forEach((oc,i)=>{
+      if(!(oc.valor>0)) return; // sem valor, essa linha não entra no cálculo, nada a exigir
+      const valorTxt = oc.unidade==='scha' ? `${fmtBR(oc.valor)} sc/ha` : brl(oc.valor);
+      if(!oc.descricao.trim()) erros.push(`Outro custo ${i+1} (${valorTxt}): informe a <b>Descrição</b> — não fica claro na planilha o que é um custo sem descrição.`);
     });
   }
   if(step.modo==='total'){
