@@ -1,7 +1,7 @@
 // Sobe a versão sempre que quiser forçar todo cliente instalado a descartar
 // o cache antigo por inteiro (não só os arquivos que mudaram) — o activate
 // abaixo já apaga qualquer cache com nome diferente deste.
-const CACHE = 'aprosoja-custo-v5';
+const CACHE = 'aprosoja-custo-v6';
 const FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './Aprosoja-logo.png', './reference.json', './maquinas_marcas_modelos.json', './maquinas_anos_fabricacao.json'];
 
 // Arquivos de dados/código que mudam com frequência (a cada ajuste do app ou
