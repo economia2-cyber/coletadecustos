@@ -851,6 +851,7 @@ function calcularCustosFixosCapital(maquinasList, benf, area){
 // ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
 const brl = (v,dec=2)=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
 const n1 = v=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const n2 = v=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct0 = v=>((v||0)*100).toFixed(0)+'%';
 
 // ─── NÚMEROS NO MODELO BRASILEIRO (vírgula decimal) ────────────────────────────
@@ -1030,11 +1031,11 @@ function gerarInsights(r){
   const ct = r.agregados.custo_total;
   if(ct.delta_pct!==null){
     if(ct.status==='acima'){
-      ins.push(['alerta', `Seu custo total previsto é ${(ct.delta_pct*100).toFixed(1)}% maior que a média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), o equivalente a ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha a mais de custo. Vale revisar as fases abaixo antes de plantar.`]);
+      ins.push(['alerta', `Seu custo total previsto é ${n1(ct.delta_pct*100)}% maior que a média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), o equivalente a ${n1(Math.abs(ct.delta_scha))} sc/ha a mais de custo. Vale revisar as fases abaixo antes de plantar.`]);
     }else if(ct.status==='abaixo'){
-      ins.push(['ok', `Seu custo total previsto está ${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS `+
-        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), uma economia esperada de ${Math.abs(ct.delta_scha).toFixed(1)} sc/ha.`]);
+      ins.push(['ok', `Seu custo total previsto está ${n1(Math.abs(ct.delta_pct*100))}% abaixo da média Aprosoja/MS `+
+        `(${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha), uma economia esperada de ${n1(Math.abs(ct.delta_scha))} sc/ha.`]);
     }else{
       ins.push(['info', `Seu custo total previsto está dentro da faixa da média Aprosoja/MS (${brl(ct.rha)}/ha contra ${brl(ct.ref_rha)}/ha).`]);
     }
@@ -1050,7 +1051,7 @@ function gerarInsights(r){
         média. Encargos Sociais é ajustável; Manutenção e Seguro do Capital Fixo refletem o valor das suas máquinas e
         benfeitorias.`]);
     }else{
-      ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia possível se ajustado).`]);
+      ins.push(['alerta', `Considere revisar ${nome}: previsto em ${brl(g.rha)}/ha, ${(g.delta_pct*100).toFixed(0)}% acima da média (${n1(Math.abs(g.delta_scha))} sc/ha de economia possível se ajustado).`]);
     }
   });
   const abaixo = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
@@ -1059,21 +1060,21 @@ function gerarInsights(r){
       ins.push(['ok', `${nome}: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média,
         refletindo o valor das suas máquinas e/ou benfeitorias.`]);
     }else{
-      ins.push(['ok', `${nome} está bem planejado: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${Math.abs(g.delta_scha).toFixed(1)} sc/ha de economia).`]);
+      ins.push(['ok', `${nome} está bem planejado: previsto em ${brl(g.rha)}/ha, ${Math.abs(g.delta_pct*100).toFixed(0)}% abaixo da média (${n1(Math.abs(g.delta_scha))} sc/ha de economia).`]);
     }
   });
   const prod=r.produtividade, peqT=r.ponto_eq_total, peqO=r.ponto_eq_operacional, folga=prod-peqT;
   if(folga>=0){
-    ins.push(['ok', `Sua produtividade (${n1(prod)} sc/ha) supera o ponto de equilíbrio total (${n1(peqT)} sc/ha) em ${folga.toFixed(1)} sc/ha, com margem positiva mesmo cobrindo o custo de oportunidade do capital.`]);
+    ins.push(['ok', `Sua produtividade (${n1(prod)} sc/ha) supera o ponto de equilíbrio total (${n1(peqT)} sc/ha) em ${n1(folga)} sc/ha, com margem positiva mesmo cobrindo o custo de oportunidade do capital.`]);
   }else if(prod>=peqO){
-    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${Math.abs(folga).toFixed(1)} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha). Não sobra para remunerar o capital investido.`]);
+    ins.push(['alerta', `Sua produtividade (${n1(prod)} sc/ha) cobre o custo operacional (equilíbrio em ${n1(peqO)} sc/ha), mas fica ${n1(Math.abs(folga))} sc/ha abaixo do equilíbrio total (${n1(peqT)} sc/ha). Não sobra para remunerar o capital investido.`]);
   }else{
     ins.push(['alerta', `Sua produtividade esperada (${n1(prod)} sc/ha) está abaixo até do ponto de equilíbrio operacional (${n1(peqO)} sc/ha). Nesse cenário, a safra ficaria no prejuízo em caixa.`]);
   }
   const lp=r.lucratividade_pct*100;
-  if(lp>=15) ins.push(['ok', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta.`]);
-  else if(lp>=0) ins.push(['info', `Lucratividade estimada de ${lp.toFixed(1)}% sobre a receita bruta, margem apertada.`]);
-  else ins.push(['alerta', `Margem total negativa: ${lp.toFixed(1)}% sobre a receita bruta.`]);
+  if(lp>=15) ins.push(['ok', `Lucratividade estimada de ${n1(lp)}% sobre a receita bruta.`]);
+  else if(lp>=0) ins.push(['info', `Lucratividade estimada de ${n1(lp)}% sobre a receita bruta, margem apertada.`]);
+  else ins.push(['alerta', `Margem total negativa: ${n1(lp)}% sobre a receita bruta.`]);
   return ins;
 }
 
@@ -1633,13 +1634,17 @@ function linhasMaquinas(maquinasDetalhe, area){
 
 // ─── RELATÓRIO TÉCNICO (conteúdo exclusivo do PDF impresso) ─────────────────────
 function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDetalhe){
+  // Seções 3 e 4 só existem com máquinas/benfeitorias informadas: numera na ordem
+  // em que as seções são montadas (a mesma do relatório), sem pular número.
+  let numSecao = 0;
+  const secNum = ()=>`${++numSecao}.`;
   const ct = r.agregados.custo_total, cv = r.agregados.custo_variavel,
         cf = r.agregados.custo_fixo, co = r.agregados.custo_operacional;
 
   const posicaoTexto = ct.status==='acima'
-    ? `${(ct.delta_pct*100).toFixed(1)}% acima da média Aprosoja/MS para a safra ${meta.safra}`
+    ? `${n1(ct.delta_pct*100)}% acima da média Aprosoja/MS para a safra ${meta.safra}`
     : ct.status==='abaixo'
-    ? `${Math.abs(ct.delta_pct*100).toFixed(1)}% abaixo da média Aprosoja/MS para a safra ${meta.safra}`
+    ? `${n1(Math.abs(ct.delta_pct*100))}% abaixo da média Aprosoja/MS para a safra ${meta.safra}`
     : ct.status==='dentro'
     ? `dentro da faixa da média Aprosoja/MS para a safra ${meta.safra}`
     : `sem uma referência de comparação disponível para a safra ${meta.safra}`;
@@ -1658,14 +1663,14 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
       no município de <b>${meta.municipio||'-'}</b> (safra ${meta.safra}), é de <b>${brl(r.custo_total_rha)}/ha</b>
       (${brl(r.custo_sc_total)}/sc), ${posicaoTexto}. Considerando produtividade esperada de ${n1(r.produtividade)} sc/ha e
       preço de venda de ${brl(r.preco)}/sc, a receita bruta prevista é de ${brl(r.receita_rha)}/ha, resultando em margem total
-      prevista de ${brl(r.margem_total_rha)}/ha (${(r.lucratividade_pct*100).toFixed(1)}% sobre a receita bruta), com margem ${situacaoMargem}.
+      prevista de ${brl(r.margem_total_rha)}/ha (${n1(r.lucratividade_pct*100)}% sobre a receita bruta), com margem ${situacaoMargem}.
       Este relatório é uma previsão para planejar a safra antes do plantio, com base nos dados técnicos informados pelo
       produtor e na média de custos apurada pela Aprosoja/MS.</p>
     </div>`;
 
   const secDados = `
     <div class="pdf-sec">
-      <div class="pdf-h2">1. Dados da Lavoura e Premissas</div>
+      <div class="pdf-h2">${secNum()} Dados da Lavoura e Premissas</div>
       <table class="pdf-table"><tbody>
         <tr><td>Nome</td><td>${meta.produtor||'-'}</td><td>Safra de referência</td><td>${meta.safra}</td></tr>
         <tr><td>Município</td><td>${meta.municipio||'-'}</td><td>Data do relatório</td><td>${geradoEm}</td></tr>
@@ -1676,7 +1681,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
 
   const secEstrutura = `
     <div class="pdf-sec">
-      <div class="pdf-h2">2. Estrutura de Custos</div>
+      <div class="pdf-h2">${secNum()} Estrutura de Custos</div>
       <p class="pdf-p">O custo de produção é decomposto em custo variável (insumos, operações e despesas ligadas
       diretamente à safra), custo fixo (depreciações e manutenção de benfeitorias e máquinas) e custo de oportunidade
       do capital investido (remuneração esperada sobre o capital fixo). A tabela a seguir resume essa estrutura.</p>
@@ -1698,7 +1703,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
   const totalMaqRha = linhasMaq.reduce((s,l)=>s+l.rha,0);
   const secMaquinas = linhasMaq.length ? `
     <div class="pdf-sec">
-      <div class="pdf-h2">3. Detalhamento da Operação de Máquinas</div>
+      <div class="pdf-h2">${secNum()} Detalhamento da Operação de Máquinas</div>
       <p class="pdf-p">Máquinas e implementos previstos para cada fase da produção, com a potência e o número
       de passadas na lavoura ao longo de toda a safra informados pelo produtor. O custo de operação é previsto pelo
       app a partir desses dados técnicos, seguindo a Metodologia de Custo de Produção da Aprosoja/MS.</p>
@@ -1718,7 +1723,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
   const temCapitalFixo = (capMaq.deprec+capMaq.seguro+capMaq.renda+capBenf.deprec+capBenf.manut+capBenf.seguro+capBenf.renda) > 0;
   const secCapitalFixo = temCapitalFixo ? `
     <div class="pdf-sec">
-      <div class="pdf-h2">4. Depreciação, Seguro e Remuneração do Capital Fixo</div>
+      <div class="pdf-h2">${secNum()} Depreciação, Seguro e Remuneração do Capital Fixo</div>
       <p class="pdf-p">Calculado a partir do valor, da vida útil e do valor residual das máquinas e benfeitorias
       informadas, conforme a Metodologia de Custo de Produção da Aprosoja/MS. Onde não há dado de
       máquina/benfeitoria suficiente, o item correspondente usa a média Aprosoja/MS.</p>
@@ -1748,7 +1753,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
 
   const secComposicao = `
     <div class="pdf-sec">
-      <div class="pdf-h2">5. Composição do Custo por Categoria</div>
+      <div class="pdf-h2">${secNum()} Composição do Custo por Categoria</div>
       <p class="pdf-p">As categorias com maior participação no custo total são ${nomesTop3}, que juntas somam
       ${pct0(somaTop3)} do custo total de produção. A tabela a seguir detalha a participação de cada categoria,
       da maior para a menor.</p>
@@ -1762,22 +1767,22 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
   const abaixoOrd = Object.entries(r.grupos).filter(([,g])=>g.status==='abaixo').sort((a,b)=>a[1].delta_scha-b[1].delta_scha);
   let textoComparativo = acimaOrd.length
     ? `A categoria com maior desvio acima da média é <b>${acimaOrd[0][0]}</b>, ${(acimaOrd[0][1].delta_pct*100).toFixed(0)}%
-      acima do valor de referência, o equivalente a ${Math.abs(acimaOrd[0][1].delta_scha).toFixed(1)} sc/ha a mais de custo.`
+      acima do valor de referência, o equivalente a ${n1(Math.abs(acimaOrd[0][1].delta_scha))} sc/ha a mais de custo.`
     : `Nenhuma categoria está acima da média Aprosoja/MS.`;
   if(abaixoOrd.length){
     textoComparativo += ` Em contrapartida, <b>${abaixoOrd[0][0]}</b> está ${Math.abs(abaixoOrd[0][1].delta_pct*100).toFixed(0)}%
-      abaixo da média, uma economia de ${Math.abs(abaixoOrd[0][1].delta_scha).toFixed(1)} sc/ha.`;
+      abaixo da média, uma economia de ${n1(Math.abs(abaixoOrd[0][1].delta_scha))} sc/ha.`;
   }
   const secComparativo = `
     <div class="pdf-sec">
-      <div class="pdf-h2">6. Comparativo com a Média Aprosoja/MS</div>
+      <div class="pdf-h2">${secNum()} Comparativo com a Média Aprosoja/MS</div>
       <p class="pdf-p">${textoComparativo}</p>
       <table class="pdf-table">
         <thead><tr><th>Categoria</th><th class="num">Você (R$/ha)</th><th class="num">Média MS (R$/ha)</th>
           <th class="num">Diferença</th><th>Situação</th></tr></thead>
         <tbody>${Object.entries(r.grupos).map(([nome,g])=>`
           <tr><td>${nome}</td><td class="num">${brl(g.rha)}</td><td class="num">${g.ref_rha!=null?brl(g.ref_rha):'-'}</td>
-          <td class="num">${g.delta_pct!=null?(g.delta_pct>=0?'+':'')+(g.delta_pct*100).toFixed(1)+'%':'-'}</td>
+          <td class="num">${g.delta_pct!=null?(g.delta_pct>=0?'+':'')+n1(g.delta_pct*100)+'%':'-'}</td>
           <td>${({acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'})[g.status]||'-'}</td></tr>`).join('')}
         </tbody>
       </table>
@@ -1785,12 +1790,12 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
 
   const secEquilibrio = `
     <div class="pdf-sec">
-      <div class="pdf-h2">7. Ponto de Equilíbrio e Margem</div>
+      <div class="pdf-h2">${secNum()} Ponto de Equilíbrio e Margem</div>
       <p class="pdf-p">O ponto de equilíbrio operacional (produtividade mínima para cobrir apenas o custo operacional)
       é de ${n1(r.ponto_eq_operacional)} sc/ha. Já o ponto de equilíbrio total, que inclui também o custo de
       oportunidade do capital investido, é de ${n1(r.ponto_eq_total)} sc/ha. Com produtividade real de
       ${n1(r.produtividade)} sc/ha, a lavoura apresenta margem ${situacaoMargem}${folga>=0?`, com folga de
-      ${folga.toFixed(1)} sc/ha acima do ponto de equilíbrio total`:''}.</p>
+      ${n1(folga)} sc/ha acima do ponto de equilíbrio total`:''}.</p>
       <table class="pdf-table">
         <thead><tr><th>Indicador</th><th class="num">Valor</th></tr></thead>
         <tbody>
@@ -1801,22 +1806,22 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
           <tr><td>Margem Total</td><td class="num">${brl(r.margem_total_rha)}/ha</td></tr>
           <tr><td>Ponto de Equilíbrio Operacional</td><td class="num">${n1(r.ponto_eq_operacional)} sc/ha</td></tr>
           <tr><td>Ponto de Equilíbrio Total</td><td class="num">${n1(r.ponto_eq_total)} sc/ha</td></tr>
-          <tr><td>Lucratividade sobre a Receita</td><td class="num">${(r.lucratividade_pct*100).toFixed(1)}%</td></tr>
+          <tr><td>Lucratividade sobre a Receita</td><td class="num">${n1(r.lucratividade_pct*100)}%</td></tr>
         </tbody>
       </table>
     </div>`;
 
   const secDetalhe = `
     <div class="pdf-sec">
-      <div class="pdf-h2">8. Detalhamento Completo por Item</div>
+      <div class="pdf-h2">${secNum()} Detalhamento Completo por Item</div>
       <table class="pdf-table">
         <thead><tr><th>Item</th><th class="num">R$/ha</th><th class="num">sc/ha</th><th class="num">% do custo</th>
           <th class="num">Média MS</th><th>Situação</th></tr></thead>
         <tbody>${Object.keys(r.itens).map(k=>{
           const it = r.itens[k], nome = it.nome||LABELS[k];
           const badgeLbl = ({acima:'Acima da média',abaixo:'Abaixo da média',dentro:'Dentro da média'})[it.status]||'-';
-          return `<tr><td>${nome}</td><td class="num">${it.rha.toFixed(2)}</td><td class="num">${it.scha.toFixed(2)}</td>
-            <td class="num">${(it.pct*100).toFixed(1)}%</td><td class="num">${it.ref_rha!=null?it.ref_rha.toFixed(2):'-'}</td>
+          return `<tr><td>${nome}</td><td class="num">${n2(it.rha)}</td><td class="num">${n2(it.scha)}</td>
+            <td class="num">${n1(it.pct*100)}%</td><td class="num">${it.ref_rha!=null?n2(it.ref_rha):'-'}</td>
             <td>${badgeLbl}</td></tr>`;
         }).join('')}</tbody>
       </table>
@@ -1827,7 +1832,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
   const acimaEstrutural = acimaOrd.filter(([nome])=>GRUPOS_ESTRUTURAIS.includes(nome));
   const economiaTexto = acimaAcionavel.length ? `Antes de plantar, vale revisar ${acimaAcionavel.slice(0,2).map(([nome])=>`<b>${nome}</b>`).join(' e ')}:
     ${acimaAcionavel.slice(0,2).map(([nome,g])=>`${nome} está prevista ${(g.delta_pct*100).toFixed(0)}% acima da média, um potencial
-    de economia de ${Math.abs(g.delta_scha).toFixed(1)} sc/ha se ajustada para a média Aprosoja/MS`).join('; ')}.` : '';
+    de economia de ${n1(Math.abs(g.delta_scha))} sc/ha se ajustada para a média Aprosoja/MS`).join('; ')}.` : '';
   const estruturalTexto = acimaEstrutural.length ? ` ${acimaEstrutural.map(([nome])=>`<b>${nome}</b>`).join(' e ')}
     ${acimaEstrutural.length>1?'estão':'está'} acima da média, mas isso reflete o valor das máquinas e/ou benfeitorias
     informadas, não é um gasto para cortar diretamente.` : '';
@@ -1840,7 +1845,7 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
     : `O custo total previsto está em linha com a média regional. ${economiaTexto}${estruturalTexto} ${pontoForteTexto}`;
   const secConclusao = `
     <div class="pdf-sec">
-      <div class="pdf-h2">9. Conclusão</div>
+      <div class="pdf-h2">${secNum()} Conclusão</div>
       <p class="pdf-p">${conclusaoTexto} Recomenda-se revisar esta previsão ao longo da safra, à medida que os gastos
       reais forem conhecidos. Este relatório deve ser interpretado como referência de planejamento, a partir de dados
       técnicos informados pelo produtor e da média de custos apurada pela Aprosoja/MS para a safra ${meta.safra}.</p>
@@ -1886,10 +1891,10 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
     <div class="item-card">
       <div class="item-top"><span class="item-name">${it.nome||LABELS[k]}</span><span class="badge ${it.status}">${badgeLbl}</span></div>
       <div class="item-grid">
-        <div>R$/ha<b>${it.rha.toFixed(2)}</b></div>
-        <div>sc/ha<b>${it.scha.toFixed(2)}</b></div>
-        <div>% custo<b>${(it.pct*100).toFixed(1)}%</b></div>
-        <div>Média MS<b>${it.ref_rha!=null?it.ref_rha.toFixed(2):'-'}</b></div>
+        <div>R$/ha<b>${n2(it.rha)}</b></div>
+        <div>sc/ha<b>${n2(it.scha)}</b></div>
+        <div>% custo<b>${n1(it.pct*100)}%</b></div>
+        <div>Média MS<b>${it.ref_rha!=null?n2(it.ref_rha):'-'}</b></div>
       </div>
       <div class="item-bar-track"><div class="item-bar" style="width:${barW}%"></div></div>
     </div>`;
@@ -1930,7 +1935,7 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
         <div class="kcard"><div class="klbl">Receita</div><div class="kval">${brl(r.receita_rha)}</div><div class="ksub">${n1(r.produtividade)} sc/ha</div></div>
         <div class="kcard"><div class="klbl">Margem Total</div><div class="kval ${mc}">${brl(r.margem_total_rha)}</div><div class="ksub">/ha</div></div>
         <div class="kcard"><div class="klbl">P. Equilíbrio Total</div><div class="kval gold">${n1(r.ponto_eq_total)} sc/ha</div><div class="ksub">cobre custo + capital</div></div>
-        <div class="kcard"><div class="klbl">Lucratividade</div><div class="kval ${mc}">${(r.lucratividade_pct*100).toFixed(1)}%</div><div class="ksub">s/ receita bruta</div></div>
+        <div class="kcard"><div class="klbl">Lucratividade</div><div class="kval ${mc}">${n1(r.lucratividade_pct*100)}%</div><div class="ksub">s/ receita bruta</div></div>
         <div class="kcard"><div class="klbl">Custo Operacional</div><div class="kval">${brl(r.custo_operacional_rha)}</div><div class="ksub">/ha</div></div>
         <div class="kcard"><div class="klbl">Margem Operacional</div><div class="kval ${mo}">${brl(r.margem_operacional_rha)}</div><div class="ksub">/ha</div></div>
       </div>
@@ -1968,7 +1973,7 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
             <div>Potência<b>${n1(l.potencia)} cv</b></div>
             <div>Implemento<b>${l.implemento}</b></div>
             <div>Passadas<b>${n1(l.passadas)}</b></div>
-            <div>R$/ha<b>${l.rha.toFixed(2)}</b></div>
+            <div>R$/ha<b>${n2(l.rha)}</b></div>
           </div>
         </div>`).join('')}
       </div>`;
@@ -2373,7 +2378,7 @@ async function compartilharResultado(){
     `Custo Total Previsto: ${brl(r.custo_total_rha)}/ha\n`+
     `Ponto de Equilíbrio: ${n1(r.ponto_eq_total)} sc/ha\n`+
     `Margem Total Prevista: ${brl(r.margem_total_rha)}/ha\n`+
-    `Lucratividade Prevista: ${(r.lucratividade_pct*100).toFixed(1)}%\n\n`+
+    `Lucratividade Prevista: ${n1(r.lucratividade_pct*100)}%\n\n`+
     `Calculado com a Calculadora de Custo e Margem, Aprosoja/MS`;
   if(navigator.share){ try{ await navigator.share({text:texto}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   if(navigator.clipboard) navigator.clipboard.writeText(texto).then(()=>showToast('Resultado copiado.'));
