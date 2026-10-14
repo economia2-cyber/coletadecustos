@@ -287,6 +287,7 @@
     .pdf-table th{background:var(--cream2);color:var(--gd);font-weight:700;font-size:.68rem;
       text-transform:uppercase;letter-spacing:.4px}
     .pdf-table td.num,.pdf-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .pdf-table td.num{white-space:nowrap}
     .pdf-table tr{break-inside:avoid}
     .pdf-table tfoot td{font-weight:800;color:var(--gd);background:var(--cream2)}
     .pdf-cover-sub{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);
@@ -294,7 +295,8 @@
     @media print{
       *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
       @page{margin:12mm}
-      body{padding-bottom:0;background:#fff}
+      html,body{background:#fff}
+      body{padding-bottom:0}
       .page{max-width:none;margin:0}
       .header,.bnav,.toast,#splash,.no-print,.footnote{display:none!important}
       #wizard{display:none!important}
@@ -314,23 +316,6 @@
       #print-closing img{height:46px;object-fit:contain}
     }
     #print-footer,#print-closing{display:none}
-
-    /* ── Geração de PDF para envio por WhatsApp (fora do fluxo window.print()) ── */
-    /* Replica as mesmas trocas de visibilidade do @media print acima, só que via
-       classe: a biblioteca usada para gerar o arquivo compartilhável (html2canvas)
-       captura a página como ela está renderizada na tela, sem aplicar @media print. */
-    body.forcar-pdf{padding-bottom:0;background:#fff}
-    body.forcar-pdf .page{max-width:none;margin:0}
-    body.forcar-pdf .header,body.forcar-pdf .bnav,body.forcar-pdf .toast,
-    body.forcar-pdf #splash,body.forcar-pdf .no-print,body.forcar-pdf .footnote{display:none!important}
-    body.forcar-pdf #wizard{display:none!important}
-    body.forcar-pdf #report-view{display:block!important}
-    body.forcar-pdf .pdf-only{display:block!important}
-    body.forcar-pdf #print-header{display:block!important;margin-bottom:18px}
-    body.forcar-pdf #print-footer{display:block!important;margin-top:16px;padding-top:10px;
-      border-top:1px solid var(--bdl);font-size:.66rem;color:var(--tx);text-align:center}
-    body.forcar-pdf #print-closing{display:flex!important;justify-content:center;align-items:center;
-      background:var(--cream);padding:26px 0;margin-top:18px}
   </style>
 </head>
 <body>
@@ -2044,55 +2029,260 @@ function baixarPdfRelatorio(){
   setTimeout(()=>window.print(), 400);
 }
 
-// Biblioteca de geração de PDF (html2pdf.js) carregada sob demanda, só quando o
-// produtor realmente pede pra enviar por WhatsApp — evita baixar ~200KB extras
-// (e não funciona offline) em quem nunca usa esse botão.
-const HTML2PDF_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js';
-const HTML2PDF_SRI = 'sha512-+9GoO5OUX2MmPRHUH5dnOY+KGReMLcxywEvQxvAI0y5JxXh/lkz99dKj4xdYfODP3dMFsoZRz4CF/vHcaqa2Ag==';
-let _html2pdfPromise = null;
-function carregarHtml2Pdf(){
-  if(typeof html2pdf!=='undefined') return Promise.resolve(true);
-  if(_html2pdfPromise) return _html2pdfPromise;
-  _html2pdfPromise = new Promise(resolve=>{
+// Bibliotecas de geração de PDF (jsPDF + AutoTable) carregadas sob demanda, só
+// quando o produtor realmente pede pra enviar por WhatsApp — evita baixar ~450KB
+// extras em quem nunca usa esse botão. Sem conexão, o produtor recebe um aviso
+// e pode usar o "Baixar PDF do Relatório" (impressão do próprio aparelho).
+// O PDF é montado como documento de verdade (texto e tabelas vetoriais, quebra
+// de página sempre entre linhas), não como "foto" da tela: a versão anterior
+// (html2pdf.js) fatiava texto e linhas de tabela ao meio na virada de página,
+// desenhava o logo no tamanho original (3022px, "explodido" em várias páginas)
+// e, em relatório longo, passava do limite de tamanho de imagem do iPhone.
+const PDF_LIBS = [
+  {src:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js',
+   sri:'sha512-plOdviVmws4Y3JAvbnpfKb2hVxKM1lCwsi3vmElYRj+tiDLffZ4FVUj5a8vyKJ9pIgl8JCAHEJ4D1iUKBecswg==',
+   pronto:()=>!!(window.jspdf && window.jspdf.jsPDF)},
+  {src:'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js',
+   sri:'sha512-QLh0AACvI+3C+bmn3QdH6blN0NWBxwGvBDgV67TvKV5Q2knO9+/+lguVL23JQ9DR7CnfuOSYUBURlXjmJeK11Q==',
+   pronto:()=>typeof window.autoTable==='function'},
+];
+let _pdfLibsPromise = null;
+function carregarScript(lib){
+  if(lib.pronto()) return Promise.resolve(true);
+  return new Promise(resolve=>{
     const s = document.createElement('script');
-    s.src = HTML2PDF_SRC; s.integrity = HTML2PDF_SRI; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
-    s.onload = ()=>resolve(true);
-    s.onerror = ()=>{ _html2pdfPromise=null; resolve(false); };
+    s.src = lib.src; s.integrity = lib.sri; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+    s.onload = ()=>resolve(lib.pronto());
+    s.onerror = ()=>{ s.remove(); resolve(false); };
     document.head.appendChild(s);
   });
-  return _html2pdfPromise;
+}
+function carregarLibsPdf(){
+  if(_pdfLibsPromise) return _pdfLibsPromise;
+  _pdfLibsPromise = (async()=>{
+    for(const lib of PDF_LIBS){ if(!await carregarScript(lib)){ _pdfLibsPromise=null; return false; } }
+    return true;
+  })();
+  return _pdfLibsPromise;
 }
 
-// Gera o mesmo relatório técnico do "Baixar PDF" (as seções .pdf-only, normalmente
-// só visíveis durante window.print()) como um arquivo PDF de verdade e abre o
-// compartilhamento nativo do aparelho, de onde o produtor escolhe WhatsApp — ao
-// contrário do window.print(), que não produz um arquivo que dê pra anexar direto.
+// Logo reduzido para 600px antes de entrar no PDF: o arquivo original tem 3022px
+// e no PDF só ocupa ~13mm de altura, então só inflaria o arquivo à toa.
+function carregarLogoPdf(){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const larg = Math.min(600, img.naturalWidth), alt = Math.round(larg*img.naturalHeight/img.naturalWidth);
+        const c = document.createElement('canvas'); c.width = larg; c.height = alt;
+        c.getContext('2d').drawImage(img, 0, 0, larg, alt);
+        resolve({dataUrl:c.toDataURL('image/png'), proporcao:larg/alt});
+      }catch(_){ resolve(null); }
+    };
+    img.onerror = ()=>resolve(null);
+    img.src = './Aprosoja-logo.png';
+  });
+}
+
+// A fonte padrão do PDF (Helvetica) só desenha Latin-1: acentos e "ç" passam,
+// travessões/aspas tipográficas viram o equivalente simples.
+function textoPdf(s){
+  return String(s==null?'':s).replace(/[\u00a0\u2007\u202f]/g,' ').replace(/[\u2013\u2014]/g,'-')
+    .replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/[^\x00-\xff]/g,'');
+}
+
+// Monta o PDF a partir do relatório já renderizado em #report-view (cabeçalho,
+// seções .pdf-only e rodapé), a mesma fonte do "Baixar PDF do Relatório": o
+// texto continua saindo só de montarRelatorioPDF(), aqui é só a diagramação.
+async function gerarPdfRelatorio(){
+  const view = document.getElementById('report-view');
+  const corpo = view.querySelector('.pdf-only');
+  if(!corpo) throw new Error('Relatório não encontrado na tela');
+  const logo = await carregarLogoPdf();
+
+  const VERDE=[11,61,46], DOURADO=[200,166,70], CREME=[244,240,230], CREME2=[250,248,243],
+        BORDA=[216,207,186], BORDA_CLARA=[236,230,216], TEXTO=[28,28,28], TEXTO_M=[61,61,61],
+        TEXTO_C=[122,122,122], TEXTO_X=[160,154,134];
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait', compress:true});
+  doc.setProperties({title:'Relatório de Previsão de Custo de Produção - Soja', author:'Aprosoja/MS',
+    creator:'Calculadora de Custo e Margem - Aprosoja/MS'});
+  const LP = doc.internal.pageSize.getWidth(), AP = doc.internal.pageSize.getHeight();
+  const M = 14, TOPO = 14, BASE = AP-16, LARG = LP-2*M; // BASE deixa espaço pro rodapé de cada página
+  const mm = pt=>pt*25.4/72;
+  let y = TOPO;
+  const garantir = h=>{ if(y+h>BASE){ doc.addPage(); y = TOPO; } };
+  const fonte = (estilo, tam, cor)=>{ doc.setFont('helvetica', estilo); if(tam) doc.setFontSize(tam); if(cor) doc.setTextColor(...cor); };
+
+  // ── Cabeçalho ──
+  const ph = view.querySelector('#print-header');
+  let xTit = M;
+  if(logo){
+    const h = 12, w = h*logo.proporcao;
+    doc.addImage(logo.dataUrl, 'PNG', M, y, w, h, 'logo-aprosoja', 'FAST');
+    xTit = M+w+5;
+  }
+  fonte('bold', 12.5, VERDE);
+  const linhasTit = doc.splitTextToSize(textoPdf(ph.querySelector('.ph-title').textContent.trim()), LP-M-xTit);
+  doc.text(linhasTit, xTit, y+4.6);
+  fonte('normal', 8, TEXTO_C);
+  doc.text(textoPdf(ph.querySelector('.ph-sub').textContent.trim()), xTit, y+4.6+linhasTit.length*mm(12.5)*1.15+0.6);
+  y += Math.max(12, linhasTit.length*mm(12.5)*1.15+6) + 2.5;
+  doc.setDrawColor(...DOURADO); doc.setLineWidth(0.9); doc.line(M, y, LP-M, y);
+  y += 4;
+  const metas = [...ph.querySelectorAll('.ph-meta > div')].map(d=>({
+    rot: textoPdf(d.childNodes[0].textContent.trim()), val: textoPdf((d.querySelector('b')||{}).textContent||'-')}));
+  const colW = LARG/4;
+  for(let i=0; i<metas.length; i+=4){
+    const linha = metas.slice(i, i+4);
+    fonte('bold', 8.5);
+    const quebras = linha.map(m=>doc.splitTextToSize(m.val, colW-3));
+    const altVal = Math.max(...quebras.map(q=>q.length))*mm(8.5)*1.2;
+    linha.forEach((m, j)=>{
+      const x = M+j*colW;
+      fonte('normal', 6.8, TEXTO_C); doc.text(m.rot, x, y+2.4);
+      fonte('bold', 8.5, VERDE); doc.text(quebras[j], x, y+6);
+    });
+    y += 3.6+altVal+2.4;
+  }
+  y += 3;
+
+  // ── Parágrafo justificado com trechos em <b> (quebra de página só entre linhas) ──
+  const paragrafo = (el, tam, cor)=>{
+    const palavras = []; let atual = [];
+    const fecha = ()=>{ if(atual.length){ palavras.push(atual); atual = []; } };
+    const visita = (no, negrito)=>{
+      if(no.nodeType===3){
+        textoPdf(no.nodeValue).split(/(\s+)/).forEach(parte=>{
+          if(!parte) return;
+          if(/^\s+$/.test(parte)) fecha(); else atual.push({t:parte, negrito});
+        });
+      }else if(no.nodeType===1){
+        const b = negrito || no.tagName==='B' || no.tagName==='STRONG';
+        no.childNodes.forEach(f=>visita(f, b));
+      }
+    };
+    el.childNodes.forEach(f=>visita(f, false));
+    fecha();
+    doc.setFontSize(tam);
+    const largura = p=>p.reduce((s, seg)=>{ doc.setFont('helvetica', seg.negrito?'bold':'normal'); return s+doc.getTextWidth(seg.t); }, 0);
+    doc.setFont('helvetica', 'normal');
+    const espaco = doc.getTextWidth(' ');
+    const linhas = []; let lin = [], larg = 0;
+    palavras.forEach(p=>{
+      const w = largura(p);
+      if(lin.length && larg+espaco+w>LARG){ linhas.push({itens:lin}); lin = []; larg = 0; }
+      larg += (lin.length?espaco:0)+w; lin.push({p, w});
+    });
+    if(lin.length) linhas.push({itens:lin, ultima:true});
+    const altLinha = mm(tam)*1.5;
+    doc.setTextColor(...cor);
+    linhas.forEach(ln=>{
+      garantir(altLinha);
+      const soma = ln.itens.reduce((s, x)=>s+x.w, 0);
+      const gap = (!ln.ultima && ln.itens.length>1) ? (LARG-soma)/(ln.itens.length-1) : espaco;
+      let x = M;
+      ln.itens.forEach(({p, w})=>{
+        let xx = x;
+        p.forEach(seg=>{ doc.setFont('helvetica', seg.negrito?'bold':'normal'); doc.text(seg.t, xx, y+mm(tam)*1.05); xx += doc.getTextWidth(seg.t); });
+        x += w+gap;
+      });
+      y += altLinha;
+    });
+    y += 2.2;
+  };
+
+  const titulo = el=>{
+    garantir(28); // título nunca fica sozinho no pé da página, sem o conteúdo dele
+    fonte('bold', 11.5, VERDE);
+    doc.text(textoPdf(el.textContent.trim()), M, y+mm(11.5)*0.95);
+    y += mm(11.5)*1.2+1.2;
+    doc.setDrawColor(...DOURADO); doc.setLineWidth(0.6); doc.line(M, y, LP-M, y);
+    y += 3.2;
+  };
+
+  const tabela = el=>{
+    garantir(16);
+    window.autoTable(doc, {
+      html: el, includeHiddenHtml: true, useCss: false, startY: y,
+      margin: {left:M, right:M, top:TOPO, bottom:AP-BASE},
+      theme: 'grid', rowPageBreak: 'avoid', showHead: 'everyPage', showFoot: 'lastPage',
+      styles: {font:'helvetica', fontSize:7.6, textColor:TEXTO_M, lineColor:BORDA, lineWidth:0.2,
+        cellPadding:{top:1.5, bottom:1.5, left:2, right:2}, overflow:'linebreak', valign:'middle'},
+      headStyles: {fillColor:CREME2, textColor:VERDE, fontStyle:'bold', fontSize:6.6},
+      bodyStyles: {fillColor:[255,255,255]},
+      footStyles: {fillColor:CREME2, textColor:VERDE, fontStyle:'bold'},
+      didParseCell: d=>{
+        const elc = d.cell.raw && (d.cell.raw._element || d.cell.raw);
+        if(elc && elc.classList && elc.classList.contains('num')){
+          d.cell.styles.halign = 'right';
+          if(d.section!=='head') d.cell.styles.cellWidth = 'wrap'; // valor nunca quebra em "R$" / "51,22"
+        }
+        d.cell.text = d.cell.text.map(t=>textoPdf(d.section==='head' ? t.toUpperCase() : t));
+      },
+    });
+    y = doc.lastAutoTable.finalY+5;
+  };
+
+  // ── Seções do relatório ──
+  corpo.querySelectorAll('.pdf-sec').forEach(sec=>{
+    [...sec.children].forEach(el=>{
+      if(el.classList.contains('pdf-h2')) titulo(el);
+      else if(el.tagName==='TABLE') tabela(el);
+      else if(el.classList.contains('pdf-lead')) paragrafo(el, 9.6, TEXTO);
+      else if(el.textContent.trim()) paragrafo(el, 8.8, TEXTO_M);
+    });
+    y += 1.5;
+  });
+
+  // ── Nota de fechamento + faixa creme com o logo ──
+  const pf = view.querySelector('#print-footer');
+  if(pf){
+    fonte('normal', 7, TEXTO_X);
+    const linhas = doc.splitTextToSize(textoPdf(pf.textContent.replace(/\s+/g,' ').trim()), LARG-10);
+    garantir(linhas.length*mm(7)*1.4+6);
+    doc.setDrawColor(...BORDA_CLARA); doc.setLineWidth(0.3); doc.line(M, y, LP-M, y);
+    y += 3.5;
+    doc.text(linhas, LP/2, y+mm(7), {align:'center', lineHeightFactor:1.4});
+    y += linhas.length*mm(7)*1.4+3;
+  }
+  if(logo){
+    const h = 13, w = h*logo.proporcao, altFaixa = h+14;
+    garantir(altFaixa+4);
+    y += 4;
+    doc.setFillColor(...CREME); doc.rect(M, y, LARG, altFaixa, 'F');
+    doc.addImage(logo.dataUrl, 'PNG', (LP-w)/2, y+7, w, h, 'logo-aprosoja', 'FAST');
+    y += altFaixa;
+  }
+
+  // ── Rodapé de cada página ──
+  const total = doc.getNumberOfPages();
+  for(let i=1; i<=total; i++){
+    doc.setPage(i);
+    doc.setDrawColor(...BORDA_CLARA); doc.setLineWidth(0.3); doc.line(M, AP-11, LP-M, AP-11);
+    fonte('normal', 7, TEXTO_X);
+    doc.text('Calculadora de Custo e Margem · Aprosoja/MS', M, AP-7);
+    doc.text(`Página ${i} de ${total}`, LP-M, AP-7, {align:'right'});
+  }
+  return doc.output('blob');
+}
+
+// Gera o mesmo relatório técnico do "Baixar PDF" como um arquivo PDF de verdade
+// e abre o compartilhamento nativo do aparelho, de onde o produtor escolhe
+// WhatsApp — ao contrário do window.print(), que não produz um arquivo que dê
+// pra anexar direto.
 async function enviarPdfWhatsApp(){
   if(!ultimoResultado || !ultimaMeta) return;
   const btn = document.getElementById('btn-wpp-pdf');
   const original = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Gerando PDF...';
   try{
-    const ok = await carregarHtml2Pdf();
-    if(!ok || typeof html2pdf==='undefined'){
+    const ok = await carregarLibsPdf();
+    if(!ok){
       showToast('Sem conexão para gerar o PDF agora. Tente novamente com internet, ou use "Baixar PDF do Relatório".', 1);
       return;
     }
-    document.body.classList.add('forcar-pdf');
-    const nomeArq = `Relatorio_Custo_${(ultimaMeta.municipio||'lavoura').replace(/\s+/g,'_')}_${ultimaMeta.data}.pdf`;
-    let blob;
-    try{
-      blob = await html2pdf().set({
-        margin: 10,
-        filename: nomeArq,
-        image: {type:'jpeg', quality:0.95},
-        html2canvas: {scale:2, useCORS:true, backgroundColor:'#ffffff'},
-        jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
-        pagebreak: {mode:['css','legacy']},
-      }).from(document.getElementById('report-view')).outputPdf('blob');
-    }finally{
-      document.body.classList.remove('forcar-pdf');
-    }
+    const nomeArq = `Relatorio_Custo_${(ultimaMeta.municipio||'lavoura').trim().replace(/[\s\/\\:*?"<>|]+/g,'_')}_${String(ultimaMeta.data||'').slice(0,10)}.pdf`;
+    const blob = await gerarPdfRelatorio();
     const arquivo = new File([blob], nomeArq, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[arquivo]})){
       await navigator.share({
