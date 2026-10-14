@@ -736,7 +736,7 @@ let maquinas = [];
 // Horas trabalhadas por hectare, na safra: mesma fórmula da Metodologia da Aprosoja/MS
 // (Cap. IV, item 3.1) e da planilha oficial Aprosoja/MS (aba "I.1 Custo de Op.
 // de Maquinas", coluna "h/ha"). Não é perguntado ao produtor, é derivado da
-// largura de trabalho, velocidade e nº de passadas que ele já informa para
+// largura de trabalho, velocidade e nº de entradas na área que ele já informa para
 // aquele uso específico da máquina.
 const EFICIENCIA_OPERACIONAL_PADRAO = 0.75; // 75%, mesmo valor usado nos 3 exemplos da planilha oficial
 function horasHaUso(u){
@@ -748,7 +748,7 @@ function horasHaUso(u){
 // Custo de operação de máquinas (R$), previsto para a safra: o produtor não
 // gasta esse valor "de cabeça" antes de plantar, então em vez de perguntar
 // um total, o app prevê a partir de dados técnicos da máquina (potência,
-// valor do bem) e de cada uso (largura, velocidade, passadas), seguindo a
+// valor do bem) e de cada uso (largura, velocidade, entradas na área), seguindo a
 // Metodologia de Custo de Produção da Aprosoja/MS (Cap. IV, item 3), a mesma
 // usada para calcular a própria média Aprosoja/MS: diesel + lubrificação +
 // operador + manutenção da máquina, por hora, multiplicado pelas horas
@@ -1145,7 +1145,7 @@ function renderStep(){
       <div class="stitle">Operação de Máquinas</div>
       <div class="fhint" style="margin-bottom:10px">Cadastre cada máquina autopropelida (trator, pulverizador
         autopropelido, colheitadeira) uma única vez, com os dados técnicos e patrimoniais dela. Depois, adicione um
-        <b>uso</b> para cada fase em que ela trabalha (implemento, largura, velocidade e passadas daquela aplicação) —
+        <b>uso</b> para cada fase em que ela trabalha (implemento, largura, velocidade e entradas na área daquela aplicação) —
         assim, se a mesma máquina corrige o solo e também pulveriza, você não redigita potência/valor do bem duas
         vezes. O app prevê o custo de operação e a depreciação/seguro/remuneração do capital fixo a partir desses
         dados técnicos, você não precisa saber de antemão quanto vai gastar.</div>
@@ -1210,8 +1210,10 @@ function renderStep(){
             <div class="oc-valor" style="flex:1"><label>Velocidade (km/h) *</label>
               <input type="text" id="uso-velocidade-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.velocidade)}"></div>
           </div>
-          <div class="fg"><label>Passadas na safra *</label>
-            <input type="text" id="uso-passadas-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.passadas)}"></div>
+          <div class="fg"><label>Entradas na área (na safra) *</label>
+            <input type="text" id="uso-passadas-${mi}-${ui}" inputmode="decimal" value="${fmtBR(u.passadas)}">
+            <div class="fhint">Quantas vezes a máquina percorre a área inteira nesta fase, ao longo da safra.
+              Ex.: 3 aplicações de fungicida = 3 entradas.</div></div>
           ${(()=>{
             const c = custoOperacaoUso(m, u, lavoura.area||0);
             if(!c.total) return '';
@@ -1432,7 +1434,7 @@ function validarEtapa(){
         const rotuloU = `${rotuloM} · Uso ${ui+1}${u.fase?' ('+u.fase+')':''}`;
         if(!(u.largura>0)) erros.push(`"${rotuloU}": informe a <b>Largura de trabalho</b>.`);
         if(!(u.velocidade>0)) erros.push(`"${rotuloU}": informe a <b>Velocidade</b>.`);
-        if(!(u.passadas>0)) erros.push(`"${rotuloU}": informe as <b>Passadas na safra</b>.`);
+        if(!(u.passadas>0)) erros.push(`"${rotuloU}": informe as <b>Entradas na área</b>.`);
       });
     });
   }
@@ -1705,11 +1707,11 @@ function montarRelatorioPDF(r, meta, geradoEm, maquinasDetalhe, benfeitoriasDeta
     <div class="pdf-sec">
       <div class="pdf-h2">${secNum()} Detalhamento da Operação de Máquinas</div>
       <p class="pdf-p">Máquinas e implementos previstos para cada fase da produção, com a potência e o número
-      de passadas na lavoura ao longo de toda a safra informados pelo produtor. O custo de operação é previsto pelo
+      de entradas na área (quantas vezes a máquina percorre a área inteira) ao longo da safra, informados pelo produtor. O custo de operação é previsto pelo
       app a partir desses dados técnicos, seguindo a Metodologia de Custo de Produção da Aprosoja/MS.</p>
       <table class="pdf-table">
         <thead><tr><th>Máquina</th><th>Fase</th><th>Implemento</th><th class="num">Potência (cv)</th>
-          <th class="num">Passadas</th><th class="num">Custo Previsto (R$)</th><th class="num">R$/ha</th></tr></thead>
+          <th class="num">Entradas na Área</th><th class="num">Custo Previsto (R$)</th><th class="num">R$/ha</th></tr></thead>
         <tbody>${linhasMaq.map(l=>`
           <tr><td>${l.maquina}</td><td>${l.fase}</td><td>${l.implemento}</td><td class="num">${n1(l.potencia)}</td>
             <td class="num">${n1(l.passadas)}</td><td class="num">${brl(l.valor)}</td><td class="num">${brl(l.rha)}</td></tr>`).join('')}
@@ -1972,7 +1974,7 @@ function renderRelatorio(r, meta, maquinasDetalhe, benfeitoriasDetalhe){
           <div class="item-grid">
             <div>Potência<b>${n1(l.potencia)} cv</b></div>
             <div>Implemento<b>${l.implemento}</b></div>
-            <div>Passadas<b>${n1(l.passadas)}</b></div>
+            <div>Entradas na área<b>${n1(l.passadas)}</b></div>
             <div>R$/ha<b>${n2(l.rha)}</b></div>
           </div>
         </div>`).join('')}
