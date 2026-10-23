@@ -2451,45 +2451,85 @@ function carregarCfg(){
 }
 
 // ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
-async function ghGet(token,repo,path){
-  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
-    {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
-  if(r.status===404) return {sha:null,dados:[]};
+// Usa a API GraphQL do GitHub, não a REST: a cota REST da conta é dividida com
+// os outros apps e desde out/2026 se esgota na metade de cada hora (403), o
+// que travava o envio. A GraphQL tem cota própria.
+async function ghGraphql(token,query,variables){
+  const r=await fetch('https://api.github.com/graphql',{method:'POST',
+    headers:{'Authorization':`bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({query,variables})});
+  if(r.status===401) throw new Error('token do GitHub inválido ou expirado');
   if(!r.ok) throw new Error(`GitHub ${r.status}`);
   const j=await r.json();
-  const bin=atob(j.content.replace(/\n/g,''));
-  const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
-  return {sha:j.sha, dados:JSON.parse(new TextDecoder('utf-8').decode(bytes))};
+  return {data:j.data, erros:j.errors||[]};
 }
-async function ghPut(token,repo,path,dados,sha){
-  const body={message:`Coleta de custos campo - ${new Date().toISOString().split('T')[0]}`,
-    content:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))};
-  if(sha) body.sha=sha;
-  const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
-    {method:'PUT',headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-     body:JSON.stringify(body)});
-  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.message||`GitHub ${r.status}`); }
+async function ghGet(token,repo,path){
+  const [dono,nome]=repo.split('/');
+  const {data,erros}=await ghGraphql(token,`query($dono:String!,$nome:String!,$caminho:String!){
+    repository(owner:$dono,name:$nome){ref(qualifiedName:"refs/heads/main"){target{... on Commit{
+      oid file(path:$caminho){object{... on Blob{text isTruncated}}}}}}}}`,{dono,nome,caminho:path});
+  const naoAchou=erros.filter(e=>e.type==='NOT_FOUND');
+  if(erros.length>naoAchou.length) throw new Error(erros.map(e=>e.message).join('; '));
+  const alvo=data&&data.repository&&data.repository.ref&&data.repository.ref.target;
+  if(!alvo) throw new Error('repositório não encontrado ou token sem acesso');
+  if(!alvo.file) return {head:alvo.oid, dados:[]};
+  let texto=alvo.file.object.text;
+  if(alvo.file.object.isTruncated){
+    // Acima de ~500 KB a GraphQL corta o texto; aí lê pela REST (sujeita à cota dividida).
+    const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${alvo.oid}`,
+      {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.raw'}});
+    if(!r.ok) throw new Error(`GitHub ${r.status}`);
+    texto=await r.text();
+  }
+  return {head:alvo.oid, dados:JSON.parse(texto)};
 }
-async function syncPendentes(){
+async function ghPut(token,repo,path,dados,head){
+  const {erros}=await ghGraphql(token,`mutation($entrada:CreateCommitOnBranchInput!){
+    createCommitOnBranch(input:$entrada){commit{oid}}}`,{entrada:{
+      branch:{repositoryNameWithOwner:repo,branchName:'main'},
+      message:{headline:`Coleta de custos campo - ${new Date().toISOString().split('T')[0]}`},
+      expectedHeadOid:head,
+      fileChanges:{additions:[{path,contents:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))}]}}});
+  if(erros.length){
+    const e=new Error(erros.map(x=>x.message).join('; '));
+    e.desatualizado=erros.some(x=>x.type==='STALE_DATA'||/Expected branch to point to/.test(x.message||''));
+    throw e;
+  }
+}
+// Um envio por vez: dois disparos juntos (voltar a conexão + botão) gravariam
+// os mesmos cálculos duas vezes.
+let _syncEmAndamento=null;
+function syncPendentes(manual){
+  if(!_syncEmAndamento) _syncEmAndamento=_syncPendentes(manual).finally(()=>{_syncEmAndamento=null;});
+  return _syncEmAndamento;
+}
+async function _syncPendentes(manual){
   const {token,repo}=getCfg();
   if(!token||!repo) return;
   const todas=await dbAll();
   const pend=todas.filter(e=>e.status==='pending');
   if(!pend.length) return;
   try{
-    const {sha,dados}=await ghGet(token,repo,CAMINHO_DADOS);
     const novos=pend.map(({id,status,created_at,...rest})=>rest);
-    await ghPut(token,repo,CAMINHO_DADOS,[...dados,...novos],sha);
+    // Se outro envio entrar entre a leitura e a gravação, o GitHub recusa; relê e tenta de novo.
+    for(let t=0;;t++){
+      const {head,dados}=await ghGet(token,repo,CAMINHO_DADOS);
+      try{ await ghPut(token,repo,CAMINHO_DADOS,[...dados,...novos],head); break; }
+      catch(err){ if(!err.desatualizado||t>=2) throw err; }
+    }
     for(const e of pend) await dbPut({...e,status:'synced',synced_at:new Date().toISOString()});
     atualizarBadge();
     if(document.getElementById('page-pending').classList.contains('active')){ renderPending(); atualizarSbar(); }
     showToast(`${pend.length} cálculo(s) sincronizado(s).`);
-  }catch(err){ console.error(err); }
+  }catch(err){
+    console.error(err);
+    if(manual) showToast(`Não foi possível sincronizar: ${err.message}`,1);
+  }
 }
 async function syncAgora(){
   const btn=document.getElementById('bsync');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Sincronizando...';
-  await syncPendentes();
+  await syncPendentes(true);
   btn.disabled=false; btn.innerHTML='Sincronizar agora';
 }
 
@@ -2597,6 +2637,10 @@ function setOnline(v){
 }
 window.addEventListener('online', ()=>setOnline(true));
 window.addEventListener('offline',()=>setOnline(false));
+// PWA instalado costuma voltar do segundo plano sem recarregar: tenta enviar o que ficou pendente.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && online) syncPendentes();
+});
 
 // ─── SERVICE WORKER ───────────────────────────────────────────────────────────
 // Verifica atualização não só ao registrar, mas sempre que o app volta a ficar
