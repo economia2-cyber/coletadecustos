@@ -399,23 +399,6 @@
   <div class="projeto no-print">Esta iniciativa faz parte do <b>Projeto Produtividade</b>.</div>
 </div>
 
-<!-- ════════════════ AJUSTES (acesso: 7 toques no logo) ════════════════ -->
-<div id="page-settings" class="page">
-  <div class="ptitle">AJUSTES</div>
-  <div class="psub">Conexão para sincronização dos dados</div>
-  <div class="snote">O app já vem configurado sozinho, normalmente você não precisa mexer aqui.
-    O token de acesso fica salvo <b>apenas neste dispositivo</b> e nunca é exibido; use os campos
-    abaixo só para trocar a conexão.</div>
-  <div class="fg"><label>GitHub Token (Personal Access Token)</label>
-    <input type="password" id="cfg-token" placeholder="github_pat_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"></div>
-  <div class="fg"><label>Repositório GitHub (usuario/repositorio)</label>
-    <input type="text" id="cfg-repo" placeholder="economia2-cyber/calculadora-de-custo"></div>
-  <button class="bprimary" onclick="salvarCfg()">Salvar configurações</button>
-  <hr>
-  <p style="text-align:center;color:var(--tx);font-size:.7rem;padding:6px 0">Aprosoja/MS · Custo e Margem</p>
-  <div class="duvidas"><a href="https://wa.me/5567981134433" target="_blank" rel="noopener">Dúvidas e Sugestões: fale no WhatsApp</a></div>
-  <div class="projeto no-print">Esta iniciativa faz parte do <b>Projeto Produtividade</b>.</div>
-</div>
 
 <!-- Bottom nav -->
 <nav class="bnav">
@@ -600,8 +583,6 @@ const MUNICIPIOS_MS = ['Água Clara','Alcinópolis','Amambai','Anastácio','Anau
   'Rochedo','Santa Rita do Pardo','São Gabriel do Oeste','Selvíria','Sete Quedas','Sidrolândia',
   'Sonora','Tacuru','Taquarussu','Terenos','Três Lagoas','Vicentina'];
 
-const CAMINHO_DADOS = 'custos_campo.json';
-const REPO_DEFAULT = 'economia2-cyber/calculadora-de-custo';
 
 // ─── ETAPAS DO ASSISTENTE ──────────────────────────────────────────────────────
 const STEPS = [
@@ -2402,101 +2383,22 @@ const dbAll = ()=>new Promise((r,j)=>{const q=db.transaction('entries','readonly
 const dbAdd = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').add(e);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
 const dbPut = e=>new Promise((r,j)=>{const q=db.transaction('entries','readwrite').objectStore('entries').put(e);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
-// ─── CONFIG ────────────────────────────────────────────────────────────────────
-const getCfg = ()=>({token:localStorage.getItem('gh_token_custo')||'', repo:localStorage.getItem('gh_repo_custo')||REPO_DEFAULT});
-(function(){
-  let raw='';
-  const m=location.search.match(/[?&]cfg=([^&]+)/);
-  if(m) raw=m[1]; else if(location.hash.startsWith('#cfg=')) raw=location.hash.slice(5);
-  if(!raw) return;
-  try{
-    raw=decodeURIComponent(raw).replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/').replace(/[\r\n\t]/g,'');
-    while(raw.length%4) raw+='=';
-    const [t,r]=atob(raw).split('|');
-    if(t) localStorage.setItem('gh_token_custo',t.trim());
-    if(r) localStorage.setItem('gh_repo_custo',r.trim());
-    history.replaceState(null,'',location.pathname);
-    setTimeout(()=>showToast('Conexão configurada automaticamente.'),800);
-  }catch(e){ console.error('Link de configuração inválido',e); }
-})();
-
-// Configuração padrão embutida (codificada): token com acesso apenas ao
-// repositório de dados deste app (economia2-cyber/calculadora-de-custo).
-// Um link ?cfg= ou o campo em Ajustes (acesso oculto: 7 toques no logo)
-// continuam tendo prioridade sobre este valor.
-const CFG_EMBED='Z2l0aHViX3BhdF8xMUNEMzZNNVkwMFMyOEFLQ1JlcXFaX0ZSUjJySnlOVk40RTBiTkIzaGN4YmxZZ2tvbUVMSHdLWWlNNzhzdE5NRVBYVVRUSlJKSUptcG1SOGtmfGVjb25vbWlhMi1jeWJlci9jYWxjdWxhZG9yYS1kZS1jdXN0bw==';
-(function(){
-  if(localStorage.getItem('gh_repo_custo')) return;
-  try{
-    const [t,r]=atob(CFG_EMBED).split('|');
-    if(t&&!localStorage.getItem('gh_token_custo')) localStorage.setItem('gh_token_custo',t.trim());
-    if(r) localStorage.setItem('gh_repo_custo',r.trim());
-  }catch(e){ console.error('Configuração embutida inválida',e); }
-})();
-function salvarCfg(){
-  const t=document.getElementById('cfg-token').value.trim();
-  const r=document.getElementById('cfg-repo').value.trim();
-  if(!r){ showToast('Preencha o repositório',1); return; }
-  if(t) localStorage.setItem('gh_token_custo',t);
-  localStorage.setItem('gh_repo_custo',r);
-  if(!getCfg().token){ showToast('Informe o token',1); return; }
-  showToast('Configurações salvas.');
-  carregarCfg();
+// ─── SYNC (via proxy) ─────────────────────────────────────────────────────────
+// O envio passa por um servidor próprio no Railway (proxy-railway/) que guarda
+// o token do GitHub: nenhum token fica no navegador nem no código público. O
+// token que ficava embutido aqui foi copiado por terceiros e esgotava a cota
+// da conta inteira (out/2026).
+const PROXY_URL = 'https://calculadora-custo-proxy-production.up.railway.app';
+// Restos da configuração antiga (token revogado) guardados nos aparelhos.
+try{ ['gh_token_custo','gh_repo_custo'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
+// Identificador aleatório deste aparelho: junto com o id local do cálculo,
+// deixa o servidor ignorar um reenvio do mesmo cálculo (resposta perdida).
+function idAparelho(){
+  let d=localStorage.getItem('aparelho_id');
+  if(!d){ d=Math.random().toString(36).slice(2,10)+Date.now().toString(36); localStorage.setItem('aparelho_id',d); }
+  return d;
 }
-function carregarCfg(){
-  const {token,repo}=getCfg();
-  const tEl=document.getElementById('cfg-token');
-  tEl.value=''; tEl.placeholder=token?'Token configurado, digite aqui só para trocar':'github_pat_xxxxxxxxxxxxxxxxxxxx';
-  document.getElementById('cfg-repo').value=repo;
-}
-
-// ─── SYNC GITHUB ──────────────────────────────────────────────────────────────
-// Usa a API GraphQL do GitHub, não a REST: a cota REST da conta é dividida com
-// os outros apps e desde out/2026 se esgota na metade de cada hora (403), o
-// que travava o envio. A GraphQL tem cota própria.
-async function ghGraphql(token,query,variables){
-  const r=await fetch('https://api.github.com/graphql',{method:'POST',
-    headers:{'Authorization':`bearer ${token}`,'Content-Type':'application/json'},
-    body:JSON.stringify({query,variables})});
-  if(r.status===401) throw new Error('token do GitHub inválido ou expirado');
-  if(!r.ok) throw new Error(`GitHub ${r.status}`);
-  const j=await r.json();
-  return {data:j.data, erros:j.errors||[]};
-}
-async function ghGet(token,repo,path){
-  const [dono,nome]=repo.split('/');
-  const {data,erros}=await ghGraphql(token,`query($dono:String!,$nome:String!,$caminho:String!){
-    repository(owner:$dono,name:$nome){ref(qualifiedName:"refs/heads/main"){target{... on Commit{
-      oid file(path:$caminho){object{... on Blob{text isTruncated}}}}}}}}`,{dono,nome,caminho:path});
-  const naoAchou=erros.filter(e=>e.type==='NOT_FOUND');
-  if(erros.length>naoAchou.length) throw new Error(erros.map(e=>e.message).join('; '));
-  const alvo=data&&data.repository&&data.repository.ref&&data.repository.ref.target;
-  if(!alvo) throw new Error('repositório não encontrado ou token sem acesso');
-  if(!alvo.file) return {head:alvo.oid, dados:[]};
-  let texto=alvo.file.object.text;
-  if(alvo.file.object.isTruncated){
-    // Acima de ~500 KB a GraphQL corta o texto; aí lê pela REST (sujeita à cota dividida).
-    const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${alvo.oid}`,
-      {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.raw'}});
-    if(!r.ok) throw new Error(`GitHub ${r.status}`);
-    texto=await r.text();
-  }
-  return {head:alvo.oid, dados:JSON.parse(texto)};
-}
-async function ghPut(token,repo,path,dados,head){
-  const {erros}=await ghGraphql(token,`mutation($entrada:CreateCommitOnBranchInput!){
-    createCommitOnBranch(input:$entrada){commit{oid}}}`,{entrada:{
-      branch:{repositoryNameWithOwner:repo,branchName:'main'},
-      message:{headline:`Coleta de custos campo - ${new Date().toISOString().split('T')[0]}`},
-      expectedHeadOid:head,
-      fileChanges:{additions:[{path,contents:btoa(unescape(encodeURIComponent(JSON.stringify(dados,null,2))))}]}}});
-  if(erros.length){
-    const e=new Error(erros.map(x=>x.message).join('; '));
-    e.desatualizado=erros.some(x=>x.type==='STALE_DATA'||/Expected branch to point to/.test(x.message||''));
-    throw e;
-  }
-}
-// Um envio por vez: dois disparos juntos (voltar a conexão + botão) gravariam
+// Um envio por vez: dois disparos juntos (voltar a conexão + botão) mandariam
 // os mesmos cálculos duas vezes.
 let _syncEmAndamento=null;
 function syncPendentes(manual){
@@ -2504,19 +2406,15 @@ function syncPendentes(manual){
   return _syncEmAndamento;
 }
 async function _syncPendentes(manual){
-  const {token,repo}=getCfg();
-  if(!token||!repo) return;
   const todas=await dbAll();
   const pend=todas.filter(e=>e.status==='pending');
   if(!pend.length) return;
   try{
-    const novos=pend.map(({id,status,created_at,...rest})=>rest);
-    // Se outro envio entrar entre a leitura e a gravação, o GitHub recusa; relê e tenta de novo.
-    for(let t=0;;t++){
-      const {head,dados}=await ghGet(token,repo,CAMINHO_DADOS);
-      try{ await ghPut(token,repo,CAMINHO_DADOS,[...dados,...novos],head); break; }
-      catch(err){ if(!err.desatualizado||t>=2) throw err; }
-    }
+    const aparelho=idAparelho();
+    const entradas=pend.map(({id,status,created_at,...rest})=>({...rest, envio_id:`${aparelho}-${id}-${created_at}`}));
+    const r=await fetch(`${PROXY_URL}/campo`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({entradas})});
+    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.erro||`servidor ${r.status}`); }
     for(const e of pend) await dbPut({...e,status:'synced',synced_at:new Date().toISOString()});
     atualizarBadge();
     if(document.getElementById('page-pending').classList.contains('active')){ renderPending(); atualizarSbar(); }
@@ -2541,11 +2439,9 @@ async function atualizarBadge(){
   b.textContent=p; b.style.display=p?'inline-block':'none';
 }
 async function atualizarSbar(){
-  const {token,repo}=getCfg();
   const todas=await dbAll();
   const p=todas.filter(e=>e.status==='pending').length;
   const tx=document.getElementById('sbar-txt'), bs=document.getElementById('bsync');
-  if(!token||!repo){ tx.textContent='Configure a conexão em Ajustes para sincronizar.'; bs.style.display='none'; return; }
   if(!online&&p){ tx.textContent=`Offline: ${p} cálculo(s) aguardando conexão`; bs.style.display='none'; }
   else if(p){ tx.textContent=`Online: ${p} cálculo(s) prontos para sincronizar`; bs.style.display='block'; }
   else{ tx.textContent='Todos os cálculos estão sincronizados'; bs.style.display='none'; }
@@ -2575,13 +2471,12 @@ async function reabrirCalculo(id){
 
 // ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 function showPage(p){
-  ['calc','pending','share','settings'].forEach(x=>{
+  ['calc','pending','share'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active', x===p);
     const nb=document.getElementById('nav-'+x);
     if(nb) nb.classList.toggle('active', x===p);
   });
   if(p==='pending'){ renderPending(); atualizarSbar(); }
-  if(p==='settings') carregarCfg();
   if(p==='share'){
     document.getElementById('share-link').textContent = APP_LINK;
     document.getElementById('about-safra').textContent = REF?REF.safra:'-';
@@ -2610,13 +2505,6 @@ function copiarLink(){
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(APP_LINK).then(()=>showToast('Link copiado.')).catch(fb);
   else fb();
 }
-
-// ─── AJUSTES ESCONDIDOS (7 toques no logo) ─────────────────────────────────────
-let _hTap=0,_hTapT;
-document.querySelector('.header').addEventListener('click',()=>{
-  clearTimeout(_hTapT); _hTapT=setTimeout(()=>_hTap=0,2000);
-  if(++_hTap>=7){ _hTap=0; showPage('settings'); showToast('Ajustes abertos.'); }
-});
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 let _tt;
